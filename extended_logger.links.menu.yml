@@ -1,0 +1,5 @@
+extended_logger.settings:
+  title: 'Extended Logger'
+  description: 'Configure Extended Logger.'
+  parent: system.admin_config_development
+  route_name: extended_logger.settings

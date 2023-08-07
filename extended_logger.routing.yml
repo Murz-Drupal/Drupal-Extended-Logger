@@ -1,0 +1,7 @@
+extended_logger.settings:
+  path: '/admin/config/development/extended-logger'
+  defaults:
+    _title: 'Extended Logger settings'
+    _form: 'Drupal\extended_logger\Form\SettingsForm'
+  requirements:
+    _permission: 'administer extended_logger configuration'

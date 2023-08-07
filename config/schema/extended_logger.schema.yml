@@ -1,0 +1,31 @@
+extended_logger.settings:
+  type: config_object
+  label: Extended Logger
+  mapping:
+    fields:
+      type: sequence
+      label: Enabled fields
+      sequence:
+        type: string
+        label: Field name
+    fields_custom:
+      type: sequence
+      label: Additional custom fields to include
+      sequence:
+        type: string
+        label: Field name
+    target:
+      type: string
+      label: Log target
+    target_syslog_identity:
+      type: string
+      label: Syslog identity
+    target_syslog_facility:
+      type: string
+      label: Syslog facility
+    target_file_target:
+      type: string
+      label: Path to the log file
+    target_output_stream:
+      type: string
+      label: Output stream
