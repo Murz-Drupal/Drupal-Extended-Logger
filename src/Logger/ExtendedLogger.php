@@ -1,4 +1,5 @@
 <?php
+
 namespace Drupal\extended_logger\Logger;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -63,6 +64,7 @@ class ExtendedLogger implements LoggerInterface {
    * @var \Drupal\Core\Config\ImmutableConfig
    */
   protected ImmutableConfig $config;
+
   /**
    * Constructs a ExtendedLogger object.
    *
@@ -72,6 +74,8 @@ class ExtendedLogger implements LoggerInterface {
    *   The configuration factory.
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   The request stack.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
+   *   The 'event_dispatcher' service.
    */
   public function __construct(
     protected LogMessageParserInterface $parser,
@@ -145,7 +149,11 @@ class ExtendedLogger implements LoggerInterface {
 
         // A special label "metadata" to pass any free form data.
         case 'metadata':
-        // Default context keys from Drupal Core.
+          if (isset($context[$label])) {
+            $entry->$label = $context[$label];
+          }
+
+          // Default context keys from Drupal Core.
         case 'timestamp':
         case 'channel':
         case 'ip':
@@ -164,7 +172,7 @@ class ExtendedLogger implements LoggerInterface {
         $entry->$field = $context[$field];
       }
     }
-    $event = new ExtendedLoggerLogEvent($entry);
+    $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
     $this->eventDispatcher->dispatch($event);
 
     $this->persist($event->entry, $level);
@@ -176,7 +184,7 @@ class ExtendedLogger implements LoggerInterface {
    * @param array $entry
    *   A log entry array.
    * @param int $level
-   *   The log entry level.
+   *      The log entry level.
    */
   protected function persist(ExtendedLoggerEntry $entry, int $level): void {
     $entryString = json_encode($entry);
@@ -209,10 +217,10 @@ class ExtendedLogger implements LoggerInterface {
    * Convert a level integer to a string representiation of the RFC log level.
    *
    * @param int $level
-   *   The log message level.
+   *      The log message level.
    *
    * @return string
-   *   String representation of the log level.
+   *      String representation of the log level.
    */
   protected function getRfcLogLevelAsString(int $level): string {
     return match ($level) {
@@ -226,4 +234,5 @@ class ExtendedLogger implements LoggerInterface {
       RfcLogLevel::DEBUG => LogLevel::DEBUG,
     };
   }
+
 }

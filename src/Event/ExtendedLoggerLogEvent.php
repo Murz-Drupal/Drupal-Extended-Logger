@@ -11,20 +11,23 @@ use Drupal\extended_logger\ExtendedLoggerEntry;
 class ExtendedLoggerLogEvent extends Event {
 
   /**
-   * The log entry item - a stuctured associative array with values.
-   *
-   * @var array
-   */
-  public ExtendedLoggerEntry $entry;
-
-  /**
    * Constructs the object.
    *
    * @param \Drupal\extended_logger\ExtendedLoggerEntry $entry
-   *   An ExtendedLoggerEntry object with the log entry data.
+   *   The ExtendedLoggerEntry object with the log entry data.
+   * @param mixed $level
+   *   The log level.
+   * @param mixed $message
+   *   The log message.
+   * @param array $context
+   *   The log context array.
    */
-  public function __construct(ExtendedLoggerEntry $entry) {
-    $this->entry = $entry;
+  public function __construct(
+    public ExtendedLoggerEntry $entry,
+    public $level,
+    public $message,
+    public array $context,
+  ) {
   }
 
 }
