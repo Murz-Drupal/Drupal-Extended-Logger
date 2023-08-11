@@ -3,33 +3,28 @@
 namespace Drupal\extended_logger\Event;
 
 use Drupal\Component\EventDispatcher\Event;
+use Drupal\extended_logger\ExtendedLoggerEntry;
 
 /**
- * Event that is fired when a user logs in.
+ * Event that is fired before a new log entry is being persisted.
  */
 class ExtendedLoggerLogEvent extends Event {
 
   /**
-   * The event unique name.
-   * @var string
-   */
-  const EVENT_NAME = 'extended_logger_log';
-
-  /**
-   * The log record.
+   * The log entry item - a stuctured associative array with values.
    *
    * @var array
    */
-  public $record;
+  public ExtendedLoggerEntry $entry;
 
   /**
    * Constructs the object.
    *
-   * @param array $record
-   *   An array with the log record data.
+   * @param \Drupal\extended_logger\ExtendedLoggerEntry $entry
+   *   An ExtendedLoggerEntry object with the log entry data.
    */
-  public function __construct(array $record) {
-    $this->record = $record;
+  public function __construct(ExtendedLoggerEntry $entry) {
+    $this->entry = $entry;
   }
 
 }

@@ -1,0 +1,23 @@
+{
+    "name": "drupal/extended_logger",
+    "description": "A Drupal logger with ability to store any custom additional metadata with the log entry. Supports writing to a database, file, syslog, stdout/stderr (for containers).",
+    "type": "drupal-module",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "drupal/test_helpers": "1.2.x-dev@dev"
+    },
+    "authors": [
+        {
+            "name": "Alexey Murz Korepov",
+            "email": "MurzNN@gmail.com"
+        }
+    ],
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/extended_logger",
+        "source": "https://git.drupalcode.org/project/extended_logger"
+    },
+    "license": "GPL-2.0-or-later",
+    "minimum-stability": "dev"
+}

@@ -8,7 +8,7 @@ extended_logger.settings:
       sequence:
         type: string
         label: Field name
-    fields_custom:
+    fieldsCustom:
       type: sequence
       label: Additional custom fields to include
       sequence:
@@ -17,15 +17,15 @@ extended_logger.settings:
     target:
       type: string
       label: Log target
-    target_syslog_identity:
+    targetSyslogIdentity:
       type: string
       label: Syslog identity
-    target_syslog_facility:
-      type: string
+    targetSyslogFacility:
+      type: integer
       label: Syslog facility
-    target_file_target:
+    targetFileTarget:
       type: string
       label: Path to the log file
-    target_output_stream:
+    targetOutputStream:
       type: string
       label: Output stream

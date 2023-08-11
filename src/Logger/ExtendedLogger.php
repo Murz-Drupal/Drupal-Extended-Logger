@@ -2,12 +2,15 @@
 namespace Drupal\extended_logger\Logger;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LogMessageParserInterface;
 use Drupal\Core\Logger\RfcLoggerTrait;
+use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
-use Drupal\extended_logger\Form\SettingsForm;
+use Drupal\extended_logger\ExtendedLoggerEntry;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -16,6 +19,27 @@ use Symfony\Component\HttpFoundation\RequestStack;
 class ExtendedLogger implements LoggerInterface {
   use RfcLoggerTrait;
 
+  const CONFIG_KEY = 'extended_logger.settings';
+
+  const LOGGER_FIELDS = [
+    'timestamp' => 'The log entry timestamp.',
+    'timestampFloat' => 'The log entry timestamp in milliseconds.',
+    'message' => 'The rendered log message with replaced placeholders.',
+    'messageRaw' => 'The raw log message, without replacing placeholders.',
+    'baseUrl' => 'The base url of the site.',
+    'requestTime' => 'The main request timestamp.',
+    'requestTimeFloat' => 'The main request timestamp in milliseconds.',
+    'channel' => 'The log recor channel.',
+    'ip' => 'The user IP address.',
+    'requestUri' => 'The request URI',
+    'referer' => 'The referrer',
+    'severity' => 'The severity level (numeric, 0-7).',
+    'level' => 'The severity level in string (error, warning, notice, etc).',
+    'uid' => 'The id of the current user.',
+    'link' => 'The link value from the log context.',
+    'metadata' => 'The structured value of the metadata key in the log context',
+  ];
+
   /**
    * Stores whether there is a system logger connection opened or not.
    *
@@ -23,6 +47,13 @@ class ExtendedLogger implements LoggerInterface {
    */
   protected $syslogConnectionOpened = FALSE;
 
+
+  /**
+   * The logger configuration.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected ImmutableConfig $config;
   /**
    * Constructs a ExtendedLogger object.
    *
@@ -37,8 +68,9 @@ class ExtendedLogger implements LoggerInterface {
     protected LogMessageParserInterface $parser,
     protected ConfigFactoryInterface $configFactory,
     protected RequestStack $requestStack,
+    protected EventDispatcherInterface $eventDispatcher,
   ) {
-    $this->config = $this->configFactory->get(SettingsForm::CONFIG_KEY);
+    $this->config = $this->configFactory->get(self::CONFIG_KEY);
   }
 
   /**
@@ -47,9 +79,9 @@ class ExtendedLogger implements LoggerInterface {
   protected function getSyslogConnection(): bool {
     if (!$this->syslogConnectionOpened) {
       $this->syslogConnectionOpened = openlog(
-        $this->config->get('target_syslog_identity') ?? '',
+        $this->config->get('targetSyslogIdentity') ?? '',
         LOG_NDELAY,
-        $this->config->get('target_syslog_facility') ?? LOG_USER,
+        $this->config->get('targetSyslogFacility') ?? LOG_USER,
       );
     }
     return $this->syslogConnectionOpened;
@@ -63,90 +95,97 @@ class ExtendedLogger implements LoggerInterface {
 
     $fields = $this->config->get('fields') ?? [];
 
-    $record = [];
+    $entry = new ExtendedLoggerEntry();
 
     foreach ($fields as $label) {
       switch ($label) {
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-          $record[$label] = empty($message_placeholders) ? $message : strtr($message, $message_placeholders);
-
-        case 'message_raw':
-          $record[$label] = $message;
+          $entry->$label = empty($message_placeholders) ? $message : strtr($message, $message_placeholders);
           break;
 
-        case 'base_url':
-          $record[$label] = $base_url;
+        case 'messageRaw':
+          $entry->$label = $message;
           break;
 
-        case 'timestamp_msec':
-          $record[$label] = microtime();
+        case 'baseUrl':
+          $entry->$label = $base_url;
           break;
 
-        case 'request_time':
+        case 'timestampFloat':
+          $entry->$label = microtime(TRUE);
+          break;
+
+        case 'requestTime':
           $request ??= $this->requestStack->getCurrentRequest();
-          $record[$label] = $request->server->get('REQUEST_TIME');
+          $entry->$label = $request->server->get('REQUEST_TIME');
           break;
 
-        case 'request_time_msec':
+        case 'requestTimeFloat':
           $request ??= $this->requestStack->getCurrentRequest();
-          $record[$label] = $request->server->get('REQUEST_TIME_FLOAT');
+          $entry->$label = $request->server->get('REQUEST_TIME_FLOAT');
           break;
 
         case 'severity':
-          $record[$label] = $level;
+          $entry->$label = $level;
           break;
 
         case 'level':
-          // @todo Make a conversion from int to string.
-          $record[$label] = $this->logLevelToString($level);
+          $entry->$label = $this->getRfcLogLevelAsString($level);
           break;
 
-        // Special label "metadata" to pass any free form data.
+        // A special label "metadata" to pass any free form data.
         case 'metadata':
         // Default context keys from Drupal Core.
         case 'timestamp':
         case 'channel':
         case 'ip':
-        case 'request_uri':
+        case 'requestUri':
         case 'referer':
         case 'uid':
         case 'link':
         default:
           if (isset($context[$label])) {
-            $record[$label] = $context[$label];
+            $entry->$label = $context[$label];
           }
       }
     }
-    foreach ($this->config->get('fields_custom') as $field) {
+    foreach ($this->config->get('fieldsCustom') ?? [] as $field) {
       if (isset($context[$field])) {
-        $record[$field] = $context[$field];
+        $entry->$field = $context[$field];
       }
     }
-    $event = new ExtendedLoggerLogEvent($record);
-    $this->eventDispatcher = \Drupal::service('event_dispatcher');
-    $this->eventDispatcher->dispatch($event, ExtendedLoggerLogEvent::EVENT_NAME);
+    $event = new ExtendedLoggerLogEvent($entry);
+    $this->eventDispatcher->dispatch($event);
 
-    $this->write($event->record, $level);
+    $this->persist($event->entry, $level);
   }
 
-  protected function write(array $record, int $level) {
-    $recordString = json_encode($record);
+  /**
+   * Persists a log entry to the log target.
+   *
+   * @param array $entry
+   *   A log entry array.
+   * @param int $level
+   *   The log entry level.
+   */
+  protected function persist(ExtendedLoggerEntry $entry, int $level): void {
+    $entryString = json_encode($entry);
     $target = $this->config->get('target') ?? 'syslog';
     switch ($target) {
       case 'syslog':
         if (!$this->getSyslogConnection()) {
           throw new \Exception("Can't open the connection to syslog");
         }
-        syslog($level, $recordString);
+        syslog($level, $entryString);
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('target_output_stream'), $recordString . "\n");
+        file_put_contents('php://' . $this->config->get('targetOutputStream'), $entryString . "\n");
         break;
 
       case 'file':
-        file_put_contents($this->config->get('target_file_target'), $recordString . "\n", FILE_APPEND);
+        file_put_contents($this->config->get('targetFileTarget'), $entryString . "\n", FILE_APPEND);
         break;
 
       case 'null':
@@ -157,25 +196,25 @@ class ExtendedLogger implements LoggerInterface {
     }
   }
 
-  protected function logLevelToString(int $level): string {
-    switch ($level) {
-      case 0:
-        return LogLevel::EMERGENCY;
-      case 1:
-        return LogLevel::ALERT;
-      case 2:
-        return LogLevel::CRITICAL;
-      case 3:
-        return LogLevel::ERROR;
-      case 4:
-        return LogLevel::WARNING;
-      case 5:
-        return LogLevel::NOTICE;
-      case 6:
-        return LogLevel::INFO;
-      default:
-      case 7:
-        return LogLevel::DEBUG;
-    }
+  /**
+   * Convert a level integer to a string representiation of the RFC log level.
+   *
+   * @param int $level
+   *   The log message level.
+   *
+   * @return string
+   *   String representation of the log level.
+   */
+  protected function getRfcLogLevelAsString(int $level): string {
+    return match ($level) {
+      RfcLogLevel::EMERGENCY => LogLevel::EMERGENCY,
+      RfcLogLevel::ALERT => LogLevel::ALERT,
+      RfcLogLevel::CRITICAL => LogLevel::CRITICAL,
+      RfcLogLevel::ERROR => LogLevel::ERROR,
+      RfcLogLevel::WARNING => LogLevel::WARNING,
+      RfcLogLevel::NOTICE => LogLevel::NOTICE,
+      RfcLogLevel::INFO => LogLevel::INFO,
+      RfcLogLevel::DEBUG => LogLevel::DEBUG,
+    };
   }
 }

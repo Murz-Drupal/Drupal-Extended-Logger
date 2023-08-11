@@ -1,6 +1,9 @@
 name: Extended Logger
 type: module
-description: A Drupal logger with ability to store any custom additional metadata with the log record.
+description:
+  A Drupal logger with ability to store any custom additional metadata with the
+  log entry. Supports writing to a database, file, syslog, stdout/stderr
+  (for containers).
 package: Logging
 core_version_requirement: ^8 || ^9 || ^10
 configure: system.logging_settings
