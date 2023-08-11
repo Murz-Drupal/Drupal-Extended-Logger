@@ -23,7 +23,7 @@ extended_logger.settings:
     targetSyslogFacility:
       type: integer
       label: Syslog facility
-    targetFileTarget:
+    targetFilePath:
       type: string
       label: Path to the log file
     targetOutputStream:

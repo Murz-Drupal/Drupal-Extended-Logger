@@ -113,10 +113,10 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['targetFileTarget'] = [
+    $form['targetFilePath'] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('targetFileTarget'),
-      '#default_value' => $config->get('targetFileTarget') ?? '/tmp/drupal.log',
+      '#title' => $this->getSettingLabel('targetFilePath'),
+      '#default_value' => $config->get('targetFilePath') ?? '/tmp/drupal.log',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'file'],
@@ -126,7 +126,7 @@ class SettingsForm extends ConfigFormBase {
 
     $form['targetOutputStream'] = [
       '#type' => 'radios',
-      '#title' => $this->getSettingLabel('targetFileTarget'),
+      '#title' => $this->getSettingLabel('targetFilePath'),
       '#options' => [
         'stdout' => $this->t('stdout'),
         'stederr' => $this->t('stederr'),
@@ -157,7 +157,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('target', $form_state->getValue('target'))
       ->set('targetSyslogIdentity', $form_state->getValue('targetSyslogIdentity'))
       ->set('targetSyslogFacility', $form_state->getValue('targetSyslogFacility'))
-      ->set('targetFileTarget', $form_state->getValue('targetFileTarget'))
+      ->set('targetFilePath', $form_state->getValue('targetFilePath'))
       ->set('targetOutputStream', $form_state->getValue('targetOutputStream'))
       ->save();
     parent::submitForm($form, $form_state);

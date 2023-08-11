@@ -97,14 +97,14 @@ class ExtendedLoggerTest extends UnitTestCase {
     // Test writing to a file.
     $config = [
       'target' => 'file',
-      'targetFileTarget' => '/tmp/my_drupal.log',
+      'targetFilePath' => '/tmp/my_drupal.log',
     ] + $configDefault;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
     $calls = TestHelpers::mockPhpFunction('file_put_contents', ExtendedLogger::class);
     $logger = TestHelpers::initService('extended_logger.logger');
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
 
-    $this->assertEquals($config['targetFileTarget'], $calls[0][0]);
+    $this->assertEquals($config['targetFilePath'], $calls[0][0]);
     $this->assertEquals(json_encode($entry) . "\n", $calls[0][1]);
 
     // Test writing to the stderr.

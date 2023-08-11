@@ -19,5 +19,5 @@ fieldsCustom: []
 target: file
 targetSyslogIdentity: drupal
 targetSyslogFacility: 128
-targetFileTarget: /tmp/drupal.log
+targetFilePath: /tmp/drupal.log
 targetOutputStream: stdout

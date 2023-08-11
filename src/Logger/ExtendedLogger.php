@@ -153,7 +153,7 @@ class ExtendedLogger implements LoggerInterface {
             $entry->$label = $context[$label];
           }
 
-          // Default context keys from Drupal Core.
+        // Default context keys from Drupal Core.
         case 'timestamp':
         case 'channel':
         case 'ip':
@@ -202,7 +202,7 @@ class ExtendedLogger implements LoggerInterface {
         break;
 
       case 'file':
-        file_put_contents($this->config->get('targetFileTarget'), $entryString . "\n", FILE_APPEND);
+        file_put_contents($this->config->get('targetFilePath'), $entryString . "\n", FILE_APPEND);
         break;
 
       case 'null':
