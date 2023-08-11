@@ -198,11 +198,14 @@ class ExtendedLogger implements LoggerInterface {
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('targetOutputStream'), $entryString . "\n");
+        file_put_contents('php://' . $this->config->get('targetOutputStream') ?? 'stdout', $entryString . "\n");
         break;
 
       case 'file':
-        file_put_contents($this->config->get('targetFilePath'), $entryString . "\n", FILE_APPEND);
+        $file = $this->config->get('targetFilePath');
+        if (!empty($file)) {
+          file_put_contents($file, $entryString . "\n", FILE_APPEND);
+        }
         break;
 
       case 'null':
