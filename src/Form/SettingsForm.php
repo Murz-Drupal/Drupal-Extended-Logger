@@ -77,7 +77,7 @@ class SettingsForm extends ConfigFormBase {
     $form['fields_custom'] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('fields'),
-      '#description' => $this->t('A comma separated list of additional fields from context array to include.'),
+      '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
       '#default_value' => implode(',', $config->get('fields_custom') ?? []),
     ];
 
