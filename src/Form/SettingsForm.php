@@ -133,7 +133,7 @@ class SettingsForm extends ConfigFormBase {
       '#title' => $this->getSettingLabel('target_file_path'),
       '#options' => [
         'stdout' => $this->t('stdout'),
-        'stederr' => $this->t('stederr'),
+        'stderr' => $this->t('stderr'),
       ],
       '#default_value' => $config->get('target_output_stream') ?? 'stdout',
       '#states' => [
