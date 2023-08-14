@@ -67,14 +67,18 @@ class SettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('fields') ?? [],
     ];
     foreach (ExtendedLogger::LOGGER_FIELDS as $field => $description) {
+      // Use ignore till the https://www.drupal.org/project/coder/issues/3326197
+      // is fixed.
+      // @codingStandardsIgnoreStart
       $form['fields']['#options'][$field] = "<code>$field</code> - " . $this->t($description);
+      // @codingStandardsIgnoreEnd
     }
 
-    $form['fieldsCustom'] = [
+    $form['fields_custom'] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('fields'),
-      '#description' => 'A comma separated list of additional fields from context array to include.',
-      '#default_value' => implode(',', $config->get('fieldsCustom') ?? []),
+      '#description' => $this->t('A comma separated list of additional fields from context array to include.'),
+      '#default_value' => implode(',', $config->get('fields_custom') ?? []),
     ];
 
     $form['target'] = [
@@ -89,23 +93,23 @@ class SettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('target') ?? 'syslog',
     ];
 
-    $form['targetSyslogIdentity'] = [
+    $form['target_syslog_identity'] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('targetSyslogIdentity'),
-      '#description' => $this->t(' A string that will be prepended to every message logged to Syslog. If you have multiple sites logging to the same Syslog log file, a unique identity per site makes it easy to tell the log entries apart.'),
-      '#default_value' => $config->get('targetSyslogIdentity') ?? 'drupal',
+      '#title' => $this->getSettingLabel('target_syslog_identity'),
+      '#description' => $this->t('A string that will be prepended to every message logged to Syslog. If you have multiple sites logging to the same Syslog log file, a unique identity per site makes it easy to tell the log entries apart.'),
+      '#default_value' => $config->get('target_syslog_identity') ?? 'drupal',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
         ],
       ],
     ];
-    $form['targetSyslogFacility'] = [
+    $form['target_syslog_facility'] = [
       '#type' => 'select',
-      '#title' => $this->getSettingLabel('targetSyslogIdentity'),
+      '#title' => $this->getSettingLabel('target_syslog_identity'),
       '#options' => $this->syslogFacilityList(),
       '#description' => $this->t('Depending on the system configuration, Syslog and other logging tools use this code to identify or filter messages from within the entire system log.'),
-      '#default_value' => $config->get('targetSyslogFacility') ?? LOG_LOCAL0,
+      '#default_value' => $config->get('target_syslog_facility') ?? LOG_LOCAL0,
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
@@ -113,10 +117,10 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['targetFilePath'] = [
+    $form['target_file_path'] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('targetFilePath'),
-      '#default_value' => $config->get('targetFilePath') ?? '/tmp/drupal.log',
+      '#title' => $this->getSettingLabel('target_file_path'),
+      '#default_value' => $config->get('target_file_path') ?? '/tmp/drupal.log',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'file'],
@@ -124,14 +128,14 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['targetOutputStream'] = [
+    $form['target_output_stream'] = [
       '#type' => 'radios',
-      '#title' => $this->getSettingLabel('targetFilePath'),
+      '#title' => $this->getSettingLabel('target_file_path'),
       '#options' => [
         'stdout' => $this->t('stdout'),
         'stederr' => $this->t('stederr'),
       ],
-      '#default_value' => $config->get('targetOutputStream') ?? 'stdout',
+      '#default_value' => $config->get('target_output_stream') ?? 'stdout',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'output'],
@@ -145,20 +149,20 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $fieldsCustom = [];
-    $fieldsCustomString = $form_state->getValue('fieldsCustom');
-    if (!empty($fieldsCustomString)) {
-      $fieldsCustom = array_map('trim', explode(',', $fieldsCustomString));
+    $fields_custom = [];
+    $fields_customString = $form_state->getValue('fields_custom');
+    if (!empty($fields_customString)) {
+      $fields_custom = array_map('trim', explode(',', $fields_customString));
     }
 
     $this->config(ExtendedLogger::CONFIG_KEY)
       ->set('fields', $form_state->getValue('fields'))
-      ->set('fieldsCustom', $fieldsCustom)
+      ->set('fields_custom', $fields_custom)
       ->set('target', $form_state->getValue('target'))
-      ->set('targetSyslogIdentity', $form_state->getValue('targetSyslogIdentity'))
-      ->set('targetSyslogFacility', $form_state->getValue('targetSyslogFacility'))
-      ->set('targetFilePath', $form_state->getValue('targetFilePath'))
-      ->set('targetOutputStream', $form_state->getValue('targetOutputStream'))
+      ->set('target_syslog_identity', $form_state->getValue('target_syslog_identity'))
+      ->set('target_syslog_facility', $form_state->getValue('target_syslog_facility'))
+      ->set('target_file_path', $form_state->getValue('target_file_path'))
+      ->set('target_output_stream', $form_state->getValue('target_output_stream'))
       ->save();
     parent::submitForm($form, $form_state);
   }

@@ -33,15 +33,15 @@ class ExtendedLogger implements LoggerInterface {
 
   const LOGGER_FIELDS = [
     'timestamp' => 'The log entry timestamp.',
-    'timestampFloat' => 'The log entry timestamp in milliseconds.',
+    'timestamp_float' => 'The log entry timestamp in milliseconds.',
     'message' => 'The rendered log message with replaced placeholders.',
-    'messageRaw' => 'The raw log message, without replacing placeholders.',
-    'baseUrl' => 'The base url of the site.',
-    'requestTime' => 'The main request timestamp.',
-    'requestTimeFloat' => 'The main request timestamp in milliseconds.',
+    'message_raw' => 'The raw log message, without replacing placeholders.',
+    'base_url' => 'The base url of the site.',
+    'request_time' => 'The main request timestamp.',
+    'request_time_float' => 'The main request timestamp in milliseconds.',
     'channel' => 'The log recor channel.',
     'ip' => 'The user IP address.',
-    'requestUri' => 'The request URI',
+    'request_uri' => 'The request URI',
     'referer' => 'The referrer',
     'severity' => 'The severity level (numeric, 0-7).',
     'level' => 'The severity level in string (error, warning, notice, etc).',
@@ -92,9 +92,9 @@ class ExtendedLogger implements LoggerInterface {
   protected function getSyslogConnection(): bool {
     if (!$this->syslogConnectionOpened) {
       $this->syslogConnectionOpened = openlog(
-        $this->config->get('targetSyslogIdentity') ?? '',
+        $this->config->get('target_syslog_identity') ?? '',
         LOG_NDELAY,
-        $this->config->get('targetSyslogFacility') ?? LOG_USER,
+        $this->config->get('target_syslog_facility') ?? LOG_USER,
       );
     }
     return $this->syslogConnectionOpened;
@@ -117,24 +117,24 @@ class ExtendedLogger implements LoggerInterface {
           $entry->$label = empty($message_placeholders) ? $message : strtr($message, $message_placeholders);
           break;
 
-        case 'messageRaw':
+        case 'message_raw':
           $entry->$label = $message;
           break;
 
-        case 'baseUrl':
+        case 'base_url':
           $entry->$label = $base_url;
           break;
 
-        case 'timestampFloat':
+        case 'timestamp_float':
           $entry->$label = microtime(TRUE);
           break;
 
-        case 'requestTime':
+        case 'request_time':
           $request ??= $this->requestStack->getCurrentRequest();
           $entry->$label = $request->server->get('REQUEST_TIME');
           break;
 
-        case 'requestTimeFloat':
+        case 'request_time_float':
           $request ??= $this->requestStack->getCurrentRequest();
           $entry->$label = $request->server->get('REQUEST_TIME_FLOAT');
           break;
@@ -153,11 +153,11 @@ class ExtendedLogger implements LoggerInterface {
             $entry->$label = $context[$label];
           }
 
-        // Default context keys from Drupal Core.
+          // Default context keys from Drupal Core.
         case 'timestamp':
         case 'channel':
         case 'ip':
-        case 'requestUri':
+        case 'request_uri':
         case 'referer':
         case 'uid':
         case 'link':
@@ -167,7 +167,7 @@ class ExtendedLogger implements LoggerInterface {
           }
       }
     }
-    foreach ($this->config->get('fieldsCustom') ?? [] as $field) {
+    foreach ($this->config->get('fields_custom') ?? [] as $field) {
       if (isset($context[$field])) {
         $entry->$field = $context[$field];
       }
@@ -198,11 +198,11 @@ class ExtendedLogger implements LoggerInterface {
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('targetOutputStream') ?? 'stdout', $entryString . "\n");
+        file_put_contents('php://' . $this->config->get('target_output_stream') ?? 'stdout', $entryString . "\n");
         break;
 
       case 'file':
-        $file = $this->config->get('targetFilePath');
+        $file = $this->config->get('target_file_path');
         if (!empty($file)) {
           file_put_contents($file, $entryString . "\n", FILE_APPEND);
         }

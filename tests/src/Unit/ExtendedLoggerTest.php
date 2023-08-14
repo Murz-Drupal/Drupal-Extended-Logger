@@ -6,8 +6,8 @@ use Drupal\Core\Logger\LogMessageParser;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\ExtendedLoggerEntry;
 use Drupal\extended_logger\Logger\ExtendedLogger;
-use Drupal\Tests\UnitTestCase;
 use Drupal\test_helpers\TestHelpers;
+use Drupal\Tests\UnitTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Yaml\Yaml;
 
@@ -32,7 +32,7 @@ class ExtendedLoggerTest extends UnitTestCase {
 
     $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
     $config = [
-      'fieldsCustom' => ['customField2', 'custom_field_5', 'custom_field_6']
+      'fields_custom' => ['customField2', 'custom_field_5', 'custom_field_6'],
     ] + $configDefault;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
 
@@ -44,17 +44,17 @@ class ExtendedLoggerTest extends UnitTestCase {
       'metadata' => ['foo' => ['bar' => 'baz']],
       '@placeholder' => 'Bob',
     ];
-    $messageRaw = 'A message from @placeholder!';
+    $message_raw = 'A message from @placeholder!';
     $message = "A message from {$context['@placeholder']}!";
 
     $resultEntryValues = [
       'timestamp' => 1234567,
-      // The 'timestampFloat' is not static, checked separately.
+      // The 'timestamp_float' is not static, checked separately.
       'message' => $message,
-      'messageRaw' => $messageRaw,
-      'baseUrl' => $base_url,
-      'requestTime' => $server['REQUEST_TIME'],
-      'requestTimeFloat' => $server['REQUEST_TIME_FLOAT'],
+      'message_raw' => $message_raw,
+      'base_url' => $base_url,
+      'request_time' => $server['REQUEST_TIME'],
+      'request_time_float' => $server['REQUEST_TIME_FLOAT'],
       'ip' => '192.168.1.1',
       'severity' => 4,
       'level' => 'warning',
@@ -76,13 +76,13 @@ class ExtendedLoggerTest extends UnitTestCase {
     );
     $logger->method('persist')->willReturnCallback(
       function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry) {
-        $this->assertIsFloat($entry->timestampFloat);
-        unset($entry->timestampFloat);
+        $this->assertIsFloat($entry->timestamp_float);
+        unset($entry->timestamp_float);
         $this->assertEquals($resultEntry, $entry);
         $this->assertEquals($logLevel, $level);
       });
 
-    $logger->log($logLevel, $messageRaw, $context);
+    $logger->log($logLevel, $message_raw, $context);
   }
 
   /**
@@ -97,20 +97,20 @@ class ExtendedLoggerTest extends UnitTestCase {
     // Test writing to a file.
     $config = [
       'target' => 'file',
-      'targetFilePath' => '/tmp/my_drupal.log',
+      'target_file_path' => '/tmp/my_drupal.log',
     ] + $configDefault;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
     $calls = TestHelpers::mockPhpFunction('file_put_contents', ExtendedLogger::class);
     $logger = TestHelpers::initService('extended_logger.logger');
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
 
-    $this->assertEquals($config['targetFilePath'], $calls[0][0]);
+    $this->assertEquals($config['target_file_path'], $calls[0][0]);
     $this->assertEquals(json_encode($entry) . "\n", $calls[0][1]);
 
     // Test writing to the stderr.
     $config = [
       'target' => 'output',
-      'targetOutputStream' => 'stderr',
+      'target_output_stream' => 'stderr',
     ] + $configDefault;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
     $calls = TestHelpers::mockPhpFunction('file_put_contents', ExtendedLogger::class);
@@ -122,8 +122,8 @@ class ExtendedLoggerTest extends UnitTestCase {
     // Test writing to syslog.
     $config = [
       'target' => 'syslog',
-      'targetSyslogIdentity' => 'MyDrupal',
-      'targetSyslogFacility' => LOG_USER,
+      'target_syslog_identity' => 'MyDrupal',
+      'target_syslog_facility' => LOG_USER,
     ] + $configDefault;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
     $openlogCalls = TestHelpers::mockPhpFunction('openlog', ExtendedLogger::class, function () {
@@ -132,8 +132,8 @@ class ExtendedLoggerTest extends UnitTestCase {
     $syslogCalls = TestHelpers::mockPhpFunction('syslog', ExtendedLogger::class);
     $logger = TestHelpers::initService('extended_logger.logger');
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
-    $this->assertEquals($config['targetSyslogIdentity'], $openlogCalls[0][0]);
-    $this->assertEquals($config['targetSyslogFacility'], $openlogCalls[0][2]);
+    $this->assertEquals($config['target_syslog_identity'], $openlogCalls[0][0]);
+    $this->assertEquals($config['target_syslog_facility'], $openlogCalls[0][2]);
     $this->assertEquals($level, $syslogCalls[0][0]);
     $this->assertEquals(json_encode($entry), $syslogCalls[0][1]);
   }
