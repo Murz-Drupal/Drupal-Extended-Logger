@@ -9,6 +9,9 @@ use Drupal\Core\Logger\RfcLoggerTrait;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
 use Drupal\extended_logger\ExtendedLoggerEntry;
+use OpenTelemetry\API\Trace\SpanContextInterface;
+use OpenTelemetry\API\Trace\SpanInterface;
+use OpenTelemetry\SDK\Trace\Span;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -32,6 +35,7 @@ class ExtendedLogger implements LoggerInterface {
   const CONFIG_KEY = 'extended_logger.settings';
 
   const LOGGER_FIELDS = [
+    'time' => 'The timestamp as a string implementation in the "c" format.',
     'timestamp' => 'The log entry timestamp.',
     'timestamp_float' => 'The log entry timestamp in milliseconds.',
     'message' => 'The rendered log message with replaced placeholders.',
@@ -114,44 +118,49 @@ class ExtendedLogger implements LoggerInterface {
       switch ($label) {
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-          $entry->$label = empty($message_placeholders) ? $message : strtr($message, $message_placeholders);
+          $entry->set($label, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
           break;
 
         case 'message_raw':
-          $entry->$label = $message;
+          $entry->set($label, $message);
           break;
 
         case 'base_url':
-          $entry->$label = $base_url;
+          $entry->set($label, $base_url);
           break;
 
         case 'timestamp_float':
-          $entry->$label = microtime(TRUE);
+          $entry->set($label, microtime(TRUE));
+          break;
+
+        case 'time':
+          $entry->set($label, date('c', $context['timestamp']));
           break;
 
         case 'request_time':
           $request ??= $this->requestStack->getCurrentRequest();
-          $entry->$label = $request->server->get('REQUEST_TIME');
+          $entry->set($label, $request->server->get('REQUEST_TIME'));
           break;
 
         case 'request_time_float':
           $request ??= $this->requestStack->getCurrentRequest();
-          $entry->$label = $request->server->get('REQUEST_TIME_FLOAT');
+          $entry->set($label, $request->server->get('REQUEST_TIME_FLOAT'));
           break;
 
         case 'severity':
-          $entry->$label = $level;
+          $entry->set($label, $level);
           break;
 
         case 'level':
-          $entry->$label = $this->getRfcLogLevelAsString($level);
+          $entry->set($label, $this->getRfcLogLevelAsString($level));
           break;
 
         // A special label "metadata" to pass any free form data.
         case 'metadata':
           if (isset($context[$label])) {
-            $entry->$label = $context[$label];
+            $entry->set($label, $context[$label]);
           }
+          break;
 
         // Default context keys from Drupal Core.
         case 'timestamp':
@@ -163,15 +172,29 @@ class ExtendedLogger implements LoggerInterface {
         case 'link':
         default:
           if (isset($context[$label])) {
-            $entry->$label = $context[$label];
+            $entry->set($label, $context[$label]);
           }
       }
     }
+
     foreach ($this->config->get('fields_custom') ?? [] as $field) {
       if (isset($context[$field])) {
-        $entry->$field = $context[$field];
+        $entry->set($field, $context[$field]);
       }
     }
+
+    // If we have an OpenTelemetry span, add the trace id to the log entry.
+    if (class_exists(Span::class)) {
+      $span = Span::getCurrent();
+      if ($span instanceof SpanInterface) {
+        $spanContext = $span->getContext();
+        if ($spanContext instanceof SpanContextInterface) {
+          $traceId = $spanContext->getTraceId();
+          $entry->set('trace_id', $traceId);
+        }
+      }
+    }
+
     $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
     $this->eventDispatcher->dispatch($event);
 
@@ -181,30 +204,29 @@ class ExtendedLogger implements LoggerInterface {
   /**
    * Persists a log entry to the log target.
    *
-   * @param array $entry
+   * @param \Drupal\extended_logger\ExtendedLoggerEntry $entry
    *   A log entry array.
    * @param int $level
    *      The log entry level.
    */
   protected function persist(ExtendedLoggerEntry $entry, int $level): void {
-    $entryString = json_encode($entry);
     $target = $this->config->get('target') ?? 'syslog';
     switch ($target) {
       case 'syslog':
         if (!$this->getSyslogConnection()) {
           throw new \Exception("Can't open the connection to syslog");
         }
-        syslog($level, $entryString);
+        syslog($level, $entry->__toString());
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('target_output_stream') ?? 'stdout', $entryString . "\n");
+        file_put_contents('php://' . $this->config->get('target_output_stream') ?? 'stdout', $entry->__toString() . "\n");
         break;
 
       case 'file':
         $file = $this->config->get('target_file_path');
         if (!empty($file)) {
-          file_put_contents($file, $entryString . "\n", FILE_APPEND);
+          file_put_contents($file, $entry->__toString() . "\n", FILE_APPEND);
         }
         break;
 

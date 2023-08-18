@@ -2,7 +2,6 @@
 
 namespace Drupal\extended_logger\Form;
 
-use Drupal\Core\Config\Schema\Undefined;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -191,12 +190,11 @@ class SettingsForm extends ConfigFormBase {
    * Gets the label for a setting from typed settings object.
    */
   private function getSettingLabel(string $key, ?string $fallback = NULL): string {
-    $setting = $this->settingsTyped->get($key);
-    if ($setting instanceof Undefined) {
-      $label = $fallback ?: "[$key]";
+    try {
+      $label = $this->settingsTyped->get($key)->getDataDefinition()->getLabel();
     }
-    else {
-      $label = $setting->getDataDefinition()->getLabel();
+    catch (\InvalidArgumentException $e) {
+      $label = $fallback ?: "[$key]";
     }
     return $label;
   }

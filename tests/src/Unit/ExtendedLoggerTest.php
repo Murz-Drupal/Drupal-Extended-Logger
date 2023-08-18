@@ -76,9 +76,12 @@ class ExtendedLoggerTest extends UnitTestCase {
     );
     $logger->method('persist')->willReturnCallback(
       function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry) {
-        $this->assertIsFloat($entry->timestamp_float);
-        unset($entry->timestamp_float);
-        $this->assertEquals($resultEntry, $entry);
+        $this->assertIsFloat($entry->get('timestamp_float'));
+        $entry->delete('timestamp_float');
+        if ($entry->get('trace_id')) {
+          $entry->delete('trace_id');
+        }
+        $this->assertEquals(json_encode($resultEntry), $entry->__toString());
         $this->assertEquals($logLevel, $level);
       });
 
@@ -89,8 +92,10 @@ class ExtendedLoggerTest extends UnitTestCase {
    * @covers ::persist
    */
   public function testPersist() {
-    $entry = new ExtendedLoggerEntry();
-    $entry->foo = '$bar';
+    $entryData = [
+      'foo' => 'bar',
+    ];
+    $entry = new ExtendedLoggerEntry($entryData);
     $level = RfcLogLevel::EMERGENCY;
     $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
 
@@ -105,7 +110,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
 
     $this->assertEquals($config['target_file_path'], $calls[0][0]);
-    $this->assertEquals(json_encode($entry) . "\n", $calls[0][1]);
+    $this->assertEquals(json_encode($entryData) . "\n", $calls[0][1]);
 
     // Test writing to the stderr.
     $config = [
@@ -117,7 +122,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $logger = TestHelpers::initService('extended_logger.logger');
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
     $this->assertEquals('php://stderr', $calls[0][0]);
-    $this->assertEquals(json_encode($entry) . "\n", $calls[0][1]);
+    $this->assertEquals(json_encode($entry->getData()) . "\n", $calls[0][1]);
 
     // Test writing to syslog.
     $config = [
@@ -135,7 +140,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $this->assertEquals($config['target_syslog_identity'], $openlogCalls[0][0]);
     $this->assertEquals($config['target_syslog_facility'], $openlogCalls[0][2]);
     $this->assertEquals($level, $syslogCalls[0][0]);
-    $this->assertEquals(json_encode($entry), $syslogCalls[0][1]);
+    $this->assertEquals($entry->__toString(), $syslogCalls[0][1]);
   }
 
 }
