@@ -18,7 +18,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 // A workaround to make the logger compatible with Drupal 9.x and 10.x together.
-if (version_compare(\Drupal::VERSION, '10.0.0') <= 0) {
+if (version_compare(\Drupal::VERSION, '10.0.0') < 0) {
   require_once __DIR__ . '/ExtendedLoggerTrait.D9.inc';
 }
 else {
