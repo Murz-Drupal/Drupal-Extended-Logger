@@ -8,6 +8,9 @@ extended_logger.settings:
       sequence:
         type: string
         label: Field name
+    fields_all:
+      type: boolean
+      label: Add all fields to logs
     fields_custom:
       type: sequence
       label: Additional custom fields to include

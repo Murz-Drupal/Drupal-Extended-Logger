@@ -115,66 +115,66 @@ class ExtendedLogger implements LoggerInterface {
 
     $entry = new ExtendedLoggerEntry();
 
-    foreach ($fields as $label) {
-      switch ($label) {
+    foreach ($fields as $field) {
+      switch ($field) {
         case '0':
           // Skipping turned off fields.
           break;
 
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-          $entry->set($label, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
+          $entry->set($field, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
           break;
 
         case 'message_raw':
-          $entry->set($label, $message);
+          $entry->set($field, $message);
           break;
 
         case 'base_url':
-          $entry->set($label, $base_url);
+          $entry->set($field, $base_url);
           break;
 
         case 'timestamp_float':
-          $entry->set($label, microtime(TRUE));
+          $entry->set($field, microtime(TRUE));
           break;
 
         case 'time':
-          $entry->set($label, date('c', $context['timestamp']));
+          $entry->set($field, date('c', $context['timestamp']));
           break;
 
         case 'request_time':
           $request ??= $this->requestStack->getCurrentRequest();
-          $entry->set($label, $request->server->get('REQUEST_TIME'));
+          $entry->set($field, $request->server->get('REQUEST_TIME'));
           break;
 
         case 'request_time_float':
           $request ??= $this->requestStack->getCurrentRequest();
-          $entry->set($label, $request->server->get('REQUEST_TIME_FLOAT'));
+          $entry->set($field, $request->server->get('REQUEST_TIME_FLOAT'));
           break;
 
         case 'severity':
-          $entry->set($label, $level);
+          $entry->set($field, $level);
           break;
 
         case 'level':
-          $entry->set($label, $this->getRfcLogLevelAsString($level));
+          $entry->set($field, $this->getRfcLogLevelAsString($level));
           break;
 
         case 'exception':
           if (isset($context['exception'])) {
             if ($context['exception'] instanceof \Throwable) {
-              $entry->set($label, $this->exceptionToArray($context['exception']));
+              $entry->set($field, $this->exceptionToArray($context['exception']));
             }
             else {
-              $entry->set($label, $context['exception']);
+              $entry->set($field, $context['exception']);
             }
           }
           break;
 
         // A special label "metadata" to pass any free form data.
         case 'metadata':
-          if (isset($context[$label])) {
-            $entry->set($label, $context[$label]);
+          if (isset($context[$field])) {
+            $entry->set($field, $context[$field]);
           }
           break;
 
@@ -186,18 +186,28 @@ class ExtendedLogger implements LoggerInterface {
         case 'referer':
         case 'uid':
         case 'link':
-          if (isset($context[$label])) {
-            $entry->set($label, $context[$label]);
+          if (isset($context[$field])) {
+            $entry->set($field, $context[$field]);
           }
+          break;
 
         default:
           break;
       }
     }
-
-    foreach ($this->config->get('fields_custom') ?? [] as $field) {
-      if (isset($context[$field])) {
-        $entry->set($field, $context[$field]);
+    if ($this->config->get('fields_all') ?? FALSE) {
+      foreach ($context as $field => $value) {
+        if (!isset($fields[$field])) {
+          $entry->set($field, $value);
+        }
+      }
+      $entry->set($field, $context[$field]);
+    }
+    else {
+      foreach ($this->config->get('fields_custom') ?? [] as $field) {
+        if (isset($context[$field])) {
+          $entry->set($field, $context[$field]);
+        }
       }
     }
 

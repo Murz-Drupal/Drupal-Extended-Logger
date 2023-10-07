@@ -15,6 +15,7 @@ fields:
   uid: uid
   link: link
   metadata: metadata
+fields_all: false
 fields_custom: []
 target: file
 target_syslog_identity: drupal

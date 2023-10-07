@@ -73,11 +73,23 @@ class SettingsForm extends ConfigFormBase {
       // @codingStandardsIgnoreEnd
     }
 
+    $form['fields_all'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel('fields_all'),
+      '#description' => $this->t('Enables adding all fields from the context array to the log entries.'),
+      '#default_value' => $config->get('fields_all') ?? FALSE,
+    ];
+
     $form['fields_custom'] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('fields'),
+      '#title' => $this->getSettingLabel('fields_custom'),
       '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
       '#default_value' => implode(',', $config->get('fields_custom') ?? []),
+      '#states' => [
+        'visible' => [
+          ':input[name="fields_all"]' => ['checked' => FALSE],
+        ],
+      ],
     ];
 
     $form['target'] = [
@@ -156,6 +168,7 @@ class SettingsForm extends ConfigFormBase {
 
     $this->config(ExtendedLogger::CONFIG_KEY)
       ->set('fields', $form_state->getValue('fields'))
+      ->set('fields_all', $form_state->getValue('fields_all'))
       ->set('fields_custom', $fields_custom)
       ->set('target', $form_state->getValue('target'))
       ->set('target_syslog_identity', $form_state->getValue('target_syslog_identity'))
