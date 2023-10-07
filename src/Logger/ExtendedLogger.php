@@ -45,13 +45,14 @@ class ExtendedLogger implements LoggerInterface {
     'request_time_float' => 'The main request timestamp in milliseconds.',
     'channel' => 'The log recor channel.',
     'ip' => 'The user IP address.',
-    'request_uri' => 'The request URI',
-    'referer' => 'The referrer',
+    'request_uri' => 'The request URI.',
+    'referer' => 'The referrer.',
     'severity' => 'The severity level (numeric, 0-7).',
     'level' => 'The severity level in string (error, warning, notice, etc).',
     'uid' => 'The id of the current user.',
     'link' => 'The link value from the log context.',
-    'metadata' => 'The structured value of the metadata key in the log context',
+    'metadata' => 'The structured value of the metadata key in the log context.',
+    'exception' => 'Detailed information about an exception.',
   ];
 
   /**
@@ -116,6 +117,10 @@ class ExtendedLogger implements LoggerInterface {
 
     foreach ($fields as $label) {
       switch ($label) {
+        case '0':
+          // Skipping turned off fields.
+          break;
+
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
           $entry->set($label, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
@@ -155,6 +160,17 @@ class ExtendedLogger implements LoggerInterface {
           $entry->set($label, $this->getRfcLogLevelAsString($level));
           break;
 
+        case 'exception':
+          if (isset($context['exception'])) {
+            if ($context['exception'] instanceof \Throwable) {
+              $entry->set($label, $this->exceptionToArray($context['exception']));
+            }
+            else {
+              $entry->set($label, $context['exception']);
+            }
+          }
+          break;
+
         // A special label "metadata" to pass any free form data.
         case 'metadata':
           if (isset($context[$label])) {
@@ -170,10 +186,12 @@ class ExtendedLogger implements LoggerInterface {
         case 'referer':
         case 'uid':
         case 'link':
-        default:
           if (isset($context[$label])) {
             $entry->set($label, $context[$label]);
           }
+
+        default:
+          break;
       }
     }
 
@@ -258,6 +276,29 @@ class ExtendedLogger implements LoggerInterface {
       RfcLogLevel::INFO => LogLevel::INFO,
       RfcLogLevel::DEBUG => LogLevel::DEBUG,
     };
+  }
+
+  /**
+   * Converts an exception to the associative array representation.
+   *
+   * @param \Exception $e
+   *   An exception.
+   *
+   * @return array
+   *   An associative array with the exception data.
+   */
+  private function exceptionToArray(\Throwable $e) {
+    $array = [
+      'message' => $e->getMessage(),
+      'code' => $e->getCode(),
+      'file' => $e->getFile(),
+      'line' => $e->getLine(),
+      'trace' => $e->getTrace(),
+    ];
+    if ($ePrevious = $e->getPrevious()) {
+      $array['previous'] = $this->exceptionToArray($ePrevious);
+    }
+    return $array;
   }
 
 }
