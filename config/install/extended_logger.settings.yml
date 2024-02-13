@@ -1,19 +1,19 @@
 fields:
-- timestamp_float
-- message
-- message_raw
-- base_url
-- request_time_float
-- channel
-- ip
-- request_uri
-- referer
-- severity
-- level
-- uid
-- link
-- metadata
-- exception
+  - timestamp_float
+  - message
+  - message_raw
+  - base_url
+  - request_time_float
+  - channel
+  - ip
+  - request_uri
+  - referer
+  - severity
+  - level
+  - uid
+  - link
+  - metadata
+  - exception
 fields_all: false
 fields_custom: []
 target: file

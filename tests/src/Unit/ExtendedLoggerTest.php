@@ -48,12 +48,10 @@ class ExtendedLoggerTest extends UnitTestCase {
     $message = "A message from {$context['@placeholder']}!";
 
     $resultEntryValues = [
-      'timestamp' => 1234567,
       // The 'timestamp_float' is not static, checked separately.
       'message' => $message,
       'message_raw' => $message_raw,
       'base_url' => $base_url,
-      'request_time' => $server['REQUEST_TIME'],
       'request_time_float' => $server['REQUEST_TIME_FLOAT'],
       'ip' => '192.168.1.1',
       'severity' => 4,
