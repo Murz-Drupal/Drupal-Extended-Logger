@@ -1,0 +1,8 @@
+name: Extended Logger DB
+type: module
+description: A database storage backend for Extended Logger module.
+package: Logging
+core_version_requirement: ^9.4 || ^10
+configure: extended_logger_db.settings
+dependencies:
+  - extended_logger:extended_logger

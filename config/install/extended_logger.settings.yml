@@ -1,24 +1,23 @@
 fields:
-  timestamp: timestamp
-  timestamp_float: timestamp_float
-  message: message
-  message_raw: message_raw
-  base_url: base_url
-  request_time: request_time
-  request_time_float: request_time_float
-  channel: channel
-  ip: ip
-  request_uri: request_uri
-  referer: referer
-  severity: severity
-  level: level
-  uid: uid
-  link: link
-  metadata: metadata
+- timestamp_float
+- message
+- message_raw
+- base_url
+- request_time_float
+- channel
+- ip
+- request_uri
+- referer
+- severity
+- level
+- uid
+- link
+- metadata
+- exception
 fields_all: false
 fields_custom: []
 target: file
 target_syslog_identity: drupal
 target_syslog_facility: 128
-target_file_path: /tmp/drupal.log
+target_file_path: drupal.log
 target_output_stream: stdout

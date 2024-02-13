@@ -1,0 +1,7 @@
+extended_logger_db.entry:
+  path: '/admin/reports/extended-logs/{entry_id}'
+  defaults:
+    _controller: 'Drupal\extended_logger_db\Controller\ExtendedLoggerDbController::entryPage'
+    _title_callback: 'Drupal\extended_logger_db\Controller\ExtendedLoggerDbController::getEntryTitle'
+  requirements:
+    _permission: 'access site reports'

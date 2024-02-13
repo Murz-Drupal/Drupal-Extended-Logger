@@ -2,6 +2,7 @@
 
 namespace Drupal\extended_logger\Logger;
 
+use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LogMessageParserInterface;
@@ -9,6 +10,7 @@ use Drupal\Core\Logger\RfcLoggerTrait;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
 use Drupal\extended_logger\ExtendedLoggerEntry;
+use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\SDK\Trace\Span;
@@ -71,8 +73,17 @@ class ExtendedLogger implements LoggerInterface {
   protected ImmutableConfig $config;
 
   /**
+   * A db persister class.
+   *
+   * @var \Drupal\extended_logger_db\ExtendedLoggerDbPersister
+   */
+  protected ?ExtendedLoggerDbPersister $dbPersister = NULL;
+
+  /**
    * Constructs a ExtendedLogger object.
    *
+   * @param \Drupal\Component\DependencyInjection\ContainerInterface $container
+   *   The parser to use when extracting message variables.
    * @param \Drupal\Core\Logger\LogMessageParserInterface $parser
    *   The parser to use when extracting message variables.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -83,6 +94,7 @@ class ExtendedLogger implements LoggerInterface {
    *   The 'event_dispatcher' service.
    */
   public function __construct(
+    protected ContainerInterface $container,
     protected LogMessageParserInterface $parser,
     protected ConfigFactoryInterface $configFactory,
     protected RequestStack $requestStack,
@@ -106,6 +118,13 @@ class ExtendedLogger implements LoggerInterface {
   }
 
   /**
+   * Returns a list of enabled fields in the configuration.
+   */
+  public function getFields(): array {
+    return $this->config->get('fields') ?? [];
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function doLog($level, $message, array $context = []) {
@@ -117,10 +136,6 @@ class ExtendedLogger implements LoggerInterface {
 
     foreach ($fields as $field) {
       switch ($field) {
-        case '0':
-          // Skipping turned off fields.
-          break;
-
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
           $entry->set($field, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
@@ -157,7 +172,7 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'level':
-          $entry->set($field, $this->getRfcLogLevelAsString($level));
+          $entry->set($field, self::getRfcLogLevelAsString($level));
           break;
 
         case 'exception':
@@ -258,7 +273,14 @@ class ExtendedLogger implements LoggerInterface {
         }
         break;
 
-      case 'null':
+      case 'database':
+        $this->dbPersister ??= $this->getDbPersister();
+        if ($this->dbPersister) {
+          $this->dbPersister->persist($level, $entry);
+        }
+        break;
+
+      case 'none':
         break;
 
       default:
@@ -275,7 +297,7 @@ class ExtendedLogger implements LoggerInterface {
    * @return string
    *      String representation of the log level.
    */
-  protected function getRfcLogLevelAsString(int $level): string {
+  public static function getRfcLogLevelAsString(int $level): string {
     return match ($level) {
       RfcLogLevel::EMERGENCY => LogLevel::EMERGENCY,
       RfcLogLevel::ALERT => LogLevel::ALERT,
@@ -297,7 +319,7 @@ class ExtendedLogger implements LoggerInterface {
    * @return array
    *   An associative array with the exception data.
    */
-  private function exceptionToArray(\Throwable $e) {
+  private function exceptionToArray(\Exception $e) {
     $array = [
       'message' => $e->getMessage(),
       'code' => $e->getCode(),
@@ -309,6 +331,17 @@ class ExtendedLogger implements LoggerInterface {
       $array['previous'] = $this->exceptionToArray($ePrevious);
     }
     return $array;
+  }
+
+  /**
+   * Gets the 'extended_logger_db.persister' service if initialized.
+   */
+  protected function getDbPersister(): ?ExtendedLoggerDbPersister {
+    $this->dbPersister ??=
+      $this->container->has('extended_logger_db.persister')
+      ? $this->container->get('extended_logger_db.persister')
+      : NULL;
+    return $this->dbPersister;
   }
 
 }

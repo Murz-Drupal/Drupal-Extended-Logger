@@ -2,6 +2,7 @@ services:
   extended_logger.logger:
     class: Drupal\extended_logger\Logger\ExtendedLogger
     arguments:
+      - '@service_container'
       - '@logger.log_message_parser'
       - '@config.factory'
       - '@request_stack'

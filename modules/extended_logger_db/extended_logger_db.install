@@ -1,0 +1,88 @@
+<?php
+
+/**
+ * @file
+ * Installation hooks.
+ */
+
+use Drupal\extended_logger\Logger\ExtendedLogger;
+use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
+
+/**
+ * Implements hook_schema().
+ */
+function extended_logger_db_schema() {
+  $schema[ExtendedLoggerDbPersister::DB_TABLE] = [
+    'description' => 'A storage for the Extended Logger logs.',
+    'fields' => [
+      'id' => [
+        'description' => 'The identifier of the log entry.',
+        'type' => 'serial',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'time' => [
+        'description' => 'The time of the log entry with microseconds',
+        'type' => 'datetime',
+        'mysql_type' => 'datetime(6)',
+        'pgsql_type' => 'timestamp(6)',
+        'sqlite_type' => 'int(6)',
+        'size' => 'n',
+        'not null' => TRUE,
+      ],
+      'severity' => [
+        'description' => 'The severity level. Ranges from 0 (Emergency) to 7 (Debug).',
+        'type' => 'int',
+        'size' => 'tiny',
+        'length' => '1',
+        'not null' => TRUE,
+      ],
+      'channel' => [
+        'description' => 'The channel of the log entry.',
+        'type' => 'varchar',
+        'length' => '64',
+        'not null' => TRUE,
+      ],
+      'message' => [
+        'description' => 'Message string of the log entry.',
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => TRUE,
+      ],
+      'data' => [
+        'description' => 'Data array, attached to the log entry.',
+        'type' => 'text',
+        'pgsql_type' => 'jsonb',
+        'mysql_type' => 'json',
+        'size' => 'medium',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'time' => ['time'],
+      'time_severity' => ['time', 'severity'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function extended_logger_db_install() {
+  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_KEY)
+    ->set('target', 'database')
+    ->save();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function extended_logger_db_uninstall() {
+  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_KEY)
+    ->set('target', 'file')
+    ->save();
+}

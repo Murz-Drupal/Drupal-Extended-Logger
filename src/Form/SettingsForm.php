@@ -6,35 +6,30 @@ use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\extended_logger\Logger\ExtendedLogger;
+use Drupal\extended_logger\Trait\SettingLabelTrait;
+use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configure Extended Logger settings for this site.
  */
 class SettingsForm extends ConfigFormBase {
+  use SettingLabelTrait;
 
   /**
-   * The typed Extended Logger settings.
+   * A TypedConfigManager.
    *
-   * @var \Drupal\Core\Config\Schema\Mapping|\Drupal\Core\Config\Schema\Undefined
+   * @var \Drupal\Core\Config\TypedConfigManagerInterface
    */
-  private $settingsTyped;
-
-  /**
-   * {@inheritdoc}
-   */
-  public function __construct(
-    protected TypedConfigManagerInterface $configTyped,
-  ) {
-  }
+  protected TypedConfigManagerInterface $configTyped;
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('config.typed'),
-    );
+    $instance = parent::create($container);
+    $instance->configTyped = $container->get('config.typed');
+    return $instance;
   }
 
   /**
@@ -58,12 +53,14 @@ class SettingsForm extends ConfigFormBase {
     $config = $this->config(ExtendedLogger::CONFIG_KEY);
     $this->settingsTyped = $this->configTyped->get(ExtendedLogger::CONFIG_KEY);
 
+    $enabledFields = $config->get('fields') ?? [];
+
     $form['fields'] = [
       '#type' => 'checkboxes',
       '#title' => $this->getSettingLabel('fields'),
       '#description' => $this->t('Enable fields which should be present in the log entry.'),
       '#options' => [],
-      '#default_value' => $config->get('fields') ?? [],
+      '#default_value' => array_merge($enabledFields, $enabledFields),
     ];
     foreach (ExtendedLogger::LOGGER_FIELDS as $field => $description) {
       // Use ignore till the https://www.drupal.org/project/coder/issues/3326197
@@ -84,7 +81,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('fields_custom'),
       '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
-      '#default_value' => implode(',', $config->get('fields_custom') ?? []),
+      '#default_value' => implode(', ', $config->get('fields_custom') ?? []),
       '#states' => [
         'visible' => [
           ':input[name="fields_all"]' => ['checked' => FALSE],
@@ -99,10 +96,22 @@ class SettingsForm extends ConfigFormBase {
         'syslog' => $this->t('Syslog'),
         'file' => $this->t('File'),
         'output' => $this->t('Output'),
-        'null' => $this->t('Null (no logging)'),
+        'database' => $this->t('Database'),
+        'none' => $this->t('None'),
       ],
       '#default_value' => $config->get('target') ?? 'syslog',
     ];
+    $form['target']['syslog']['#description'] = $this->t('Persists to a syslog daemon. Requires syslog daemon to be available.');
+    $form['target']['file']['#description'] = $this->t('Writes log to a file. Not recommended for production.');
+    $form['target']['database']['#description'] = $this->t('Persists into the database. Not recommended for production.');
+    $form['target']['output']['#description'] = $this->t('Outputs to stdout or stderr.');
+    $form['target']['none']['#description'] = $this->t('Disables internal persisting of logs. Useful with modules that stores log entries by their own.');
+
+    if (!class_exists(ExtendedLoggerDbPersister::class)) {
+      $form['target']['database']['#disabled'] = TRUE;
+      $form['target']['database']['#description'] .=
+        ' ' . $this->t('Requires Extended Logger DB module to be enabled.');
+    }
 
     $form['target_syslog_identity'] = [
       '#type' => 'textfield',
@@ -131,7 +140,7 @@ class SettingsForm extends ConfigFormBase {
     $form['target_file_path'] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('target_file_path'),
-      '#default_value' => $config->get('target_file_path') ?? '/tmp/drupal.log',
+      '#default_value' => $config->get('target_file_path'),
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'file'],
@@ -141,7 +150,7 @@ class SettingsForm extends ConfigFormBase {
 
     $form['target_output_stream'] = [
       '#type' => 'radios',
-      '#title' => $this->getSettingLabel('target_file_path'),
+      '#title' => $this->getSettingLabel('target_output_stream'),
       '#options' => [
         'stdout' => $this->t('stdout'),
         'stderr' => $this->t('stderr'),
@@ -166,8 +175,12 @@ class SettingsForm extends ConfigFormBase {
       $fields_custom = array_map('trim', explode(',', $fields_customString));
     }
 
+    $fieldSelected = array_values(array_filter($form_state->getValue('fields'), function ($value, $key) {
+      return $value != 0;
+    }, ARRAY_FILTER_USE_BOTH));
+
     $this->config(ExtendedLogger::CONFIG_KEY)
-      ->set('fields', $form_state->getValue('fields'))
+      ->set('fields', $fieldSelected)
       ->set('fields_all', $form_state->getValue('fields_all'))
       ->set('fields_custom', $fields_custom)
       ->set('target', $form_state->getValue('target'))
@@ -182,7 +195,7 @@ class SettingsForm extends ConfigFormBase {
   /**
    * Returns a list of available syslog faciliies.
    *
-   * @return array<string>
+   * @return arraystring
    *   A list with a numeric key and a string value of the each facility.
    */
   protected function syslogFacilityList() {
@@ -197,19 +210,6 @@ class SettingsForm extends ConfigFormBase {
       LOG_LOCAL6 => 'LOG_LOCAL6',
       LOG_LOCAL7 => 'LOG_LOCAL7',
     ];
-  }
-
-  /**
-   * Gets the label for a setting from typed settings object.
-   */
-  private function getSettingLabel(string $key, ?string $fallback = NULL): string {
-    try {
-      $label = $this->settingsTyped->get($key)->getDataDefinition()->getLabel();
-    }
-    catch (\InvalidArgumentException $e) {
-      $label = $fallback ?: "[$key]";
-    }
-    return $label;
   }
 
 }
