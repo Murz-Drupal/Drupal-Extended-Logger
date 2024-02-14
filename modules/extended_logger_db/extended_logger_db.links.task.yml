@@ -1,0 +1,4 @@
+extended_logger_db.settings:
+  title: 'Database Logs'
+  route_name: extended_logger_db.settings
+  base_route: extended_logger.settings

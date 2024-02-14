@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Contains hooks for the extended_logger_db module.
+ */
+
+/**
+ * Implements hook_cron().
+ */
+function extended_logger_db_cron() {
+  \Drupal::service('extended_logger_db.manager')->cleanupDatabase();
+}

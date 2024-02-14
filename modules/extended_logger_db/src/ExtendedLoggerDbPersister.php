@@ -10,6 +10,11 @@ use Drupal\extended_logger\ExtendedLoggerEntry;
  */
 class ExtendedLoggerDbPersister {
 
+  /**
+   * The database table name to store logs.
+   *
+   * @var string
+   */
   const DB_TABLE = 'extended_logger_logs';
 
   /**

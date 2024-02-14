@@ -3,3 +3,9 @@ services:
     class: Drupal\extended_logger_db\ExtendedLoggerDbPersister
     arguments:
       - '@database'
+
+  extended_logger_db.manager:
+    class: Drupal\extended_logger_db\ExtendedLoggerDbManager
+    arguments:
+      - '@database'
+      - '@config.factory'

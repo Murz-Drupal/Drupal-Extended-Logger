@@ -1,0 +1,4 @@
+extended_logger.settings:
+  title: 'General settings'
+  route_name: extended_logger.settings
+  base_route: extended_logger.settings

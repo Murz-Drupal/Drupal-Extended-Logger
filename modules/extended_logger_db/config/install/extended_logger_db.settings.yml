@@ -1,0 +1,4 @@
+cleanup_by_time_enabled: true
+cleanup_by_time_seconds: 8035200
+cleanup_by_rows_enabled: false
+cleanup_by_rows_limit: 10000

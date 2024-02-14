@@ -1,0 +1,16 @@
+extended_logger_db.settings:
+  type: config_object
+  label: Extended Logger Database
+  mapping:
+    cleanup_by_time_enabled:
+      type: boolean
+      label: Cleanup logs by time
+    cleanup_by_time_seconds:
+      type: integer
+      label: Cleanup logs by time range
+    cleanup_by_rows_enabled:
+      type: boolean
+      label: Cleanup logs by rows
+    cleanup_by_rows_limit:
+      type: integer
+      label: Cleanup logs by rows limit

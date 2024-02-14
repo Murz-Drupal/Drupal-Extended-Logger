@@ -195,7 +195,7 @@ class SettingsForm extends ConfigFormBase {
   /**
    * Returns a list of available syslog faciliies.
    *
-   * @return arraystring
+   * @return array
    *   A list with a numeric key and a string value of the each facility.
    */
   protected function syslogFacilityList() {

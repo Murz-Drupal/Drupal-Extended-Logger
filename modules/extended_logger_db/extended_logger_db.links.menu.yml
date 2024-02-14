@@ -1,0 +1,5 @@
+extended_logger_db.settings:
+  title: 'Extended Logger Database'
+  description: 'Configure Extended Logger Database.'
+  parent: extended_logger.settings
+  route_name: extended_logger_db.settings

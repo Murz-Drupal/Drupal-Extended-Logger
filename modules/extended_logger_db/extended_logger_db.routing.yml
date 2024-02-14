@@ -5,3 +5,11 @@ extended_logger_db.entry:
     _title_callback: 'Drupal\extended_logger_db\Controller\ExtendedLoggerDbController::getEntryTitle'
   requirements:
     _permission: 'access site reports'
+
+extended_logger_db.settings:
+  path: '/admin/config/development/extended-logger/db'
+  defaults:
+    _title: 'Extended Logger Database settings'
+    _form: 'Drupal\extended_logger_db\Form\SettingsForm'
+  requirements:
+    _permission: 'administer extended_logger configuration'
