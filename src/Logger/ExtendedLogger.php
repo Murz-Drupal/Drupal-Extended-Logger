@@ -158,13 +158,15 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'request_time':
-          $request ??= $this->requestStack->getCurrentRequest();
-          $entry->set($field, $request->server->get('REQUEST_TIME'));
+          if ($request ??= $this->requestStack->getCurrentRequest()) {
+            $entry->set($field, $request->server->get('REQUEST_TIME'));
+          }
           break;
 
         case 'request_time_float':
-          $request ??= $this->requestStack->getCurrentRequest();
-          $entry->set($field, $request->server->get('REQUEST_TIME_FLOAT'));
+          if ($request ??= $this->requestStack->getCurrentRequest()) {
+            $entry->set($field, $request->server->get('REQUEST_TIME_FLOAT'));
+          }
           break;
 
         case 'severity':
@@ -313,13 +315,13 @@ class ExtendedLogger implements LoggerInterface {
   /**
    * Converts an exception to the associative array representation.
    *
-   * @param \Exception $e
+   * @param \Throwable $e
    *   An exception.
    *
    * @return array
    *   An associative array with the exception data.
    */
-  private function exceptionToArray(\Exception $e) {
+  private function exceptionToArray(\Throwable $e) {
     $array = [
       'message' => $e->getMessage(),
       'code' => $e->getCode(),
