@@ -17,6 +17,9 @@ extended_logger.settings:
       sequence:
         type: string
         label: Field name
+    service_name:
+      type: string
+      label: Service name
     target:
       type: string
       label: Log target

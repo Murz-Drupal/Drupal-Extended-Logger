@@ -1,0 +1,8 @@
+
+
+# A workaround for the issue https://www.drupal.org/project/drupal/issues/3530070
+# @todo Remove this when the issue is fixed.
+MQNAY291bnQ
+
+# PHP constants
+LOG_NDELAY

@@ -60,6 +60,9 @@ class SettingsForm extends ConfigFormBase {
       '#title' => $this->getSettingLabel('fields'),
       '#description' => $this->t('Enable fields which should be present in the log entry.'),
       '#options' => [],
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields',
+      // Use the `#default_value` because need a custom preparation of the
+      // values from the configuration.
       '#default_value' => array_merge($enabledFields, $enabledFields),
     ];
     foreach (ExtendedLogger::LOGGER_FIELDS as $field => $description) {
@@ -74,19 +77,29 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->getSettingLabel('fields_all'),
       '#description' => $this->t('Enables adding all fields from the context array to the log entries.'),
-      '#default_value' => $config->get('fields_all') ?? FALSE,
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields_all',
     ];
 
     $form['fields_custom'] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('fields_custom'),
       '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields_custom',
+      // Use the `#default_value` because need a custom preparation of the
+      // values from the configuration.
       '#default_value' => implode(', ', $config->get('fields_custom') ?? []),
       '#states' => [
         'visible' => [
           ':input[name="fields_all"]' => ['checked' => FALSE],
         ],
       ],
+    ];
+
+    $form['service_name'] = [
+      '#type' => 'textfield',
+      '#title' => $this->getSettingLabel('service_name'),
+      '#description' => $this->t('The name of the service to identify the log source.'),
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':service_name',
     ];
 
     $form['target'] = [
@@ -99,7 +112,7 @@ class SettingsForm extends ConfigFormBase {
         'database' => $this->t('Database'),
         'none' => $this->t('None'),
       ],
-      '#default_value' => $config->get('target') ?? 'syslog',
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target',
     ];
     $form['target']['syslog']['#description'] = $this->t('Persists to a syslog daemon. Requires syslog daemon to be available.');
     $form['target']['file']['#description'] = $this->t('Writes log to a file. Not recommended for production.');
@@ -117,7 +130,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('target_syslog_identity'),
       '#description' => $this->t('A string that will be prepended to every message logged to Syslog. If you have multiple sites logging to the same Syslog log file, a unique identity per site makes it easy to tell the log entries apart.'),
-      '#default_value' => $config->get('target_syslog_identity') ?? 'drupal',
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_syslog_identity',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
@@ -129,7 +142,7 @@ class SettingsForm extends ConfigFormBase {
       '#title' => $this->getSettingLabel('target_syslog_identity'),
       '#options' => $this->syslogFacilityList(),
       '#description' => $this->t('Depending on the system configuration, Syslog and other logging tools use this code to identify or filter messages from within the entire system log.'),
-      '#default_value' => $config->get('target_syslog_facility') ?? LOG_LOCAL0,
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_syslog_facility',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
@@ -140,7 +153,7 @@ class SettingsForm extends ConfigFormBase {
     $form['target_file_path'] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel('target_file_path'),
-      '#default_value' => $config->get('target_file_path'),
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_file_path',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'file'],
@@ -155,7 +168,7 @@ class SettingsForm extends ConfigFormBase {
         'stdout' => $this->t('stdout'),
         'stderr' => $this->t('stderr'),
       ],
-      '#default_value' => $config->get('target_output_stream') ?? 'stdout',
+      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_output_stream',
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'output'],
@@ -168,32 +181,28 @@ class SettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+
+    // Apply form state values transformation on the validation step, instead of
+    // the submit, because ConfigFormBase::validateForm() requires the values to
+    // be valid to store in the configuration.
+    $fieldSelected = array_values(array_filter($form_state->getValue('fields'), function ($value, $key) {
+      return $value != 0;
+    }, ARRAY_FILTER_USE_BOTH));
+    $form_state->setValue('fields', $fieldSelected);
+
     $fields_custom = [];
     $fields_customString = $form_state->getValue('fields_custom');
     if (!empty($fields_customString)) {
       $fields_custom = array_map('trim', explode(',', $fields_customString));
     }
+    $form_state->setValue('fields_custom', $fields_custom);
 
-    $fieldSelected = array_values(array_filter($form_state->getValue('fields'), function ($value, $key) {
-      return $value != 0;
-    }, ARRAY_FILTER_USE_BOTH));
-
-    $this->config(ExtendedLogger::CONFIG_KEY)
-      ->set('fields', $fieldSelected)
-      ->set('fields_all', $form_state->getValue('fields_all'))
-      ->set('fields_custom', $fields_custom)
-      ->set('target', $form_state->getValue('target'))
-      ->set('target_syslog_identity', $form_state->getValue('target_syslog_identity'))
-      ->set('target_syslog_facility', $form_state->getValue('target_syslog_facility'))
-      ->set('target_file_path', $form_state->getValue('target_file_path'))
-      ->set('target_output_stream', $form_state->getValue('target_output_stream'))
-      ->save();
-    parent::submitForm($form, $form_state);
+    parent::validateForm($form, $form_state);
   }
 
   /**
-   * Returns a list of available syslog faciliies.
+   * Returns a list of available syslog facilities.
    *
    * @return array
    *   A list with a numeric key and a string value of the each facility.

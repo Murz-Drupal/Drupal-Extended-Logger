@@ -37,6 +37,7 @@ class ExtendedLogger implements LoggerInterface {
   const CONFIG_KEY = 'extended_logger.settings';
 
   const LOGGER_FIELDS = [
+    'service.name' => 'The name of the service that produce the log.',
     'time' => 'The timestamp as a string implementation in the "c" format.',
     'timestamp' => 'The log entry timestamp.',
     'timestamp_float' => 'The log entry timestamp in milliseconds.',
@@ -45,7 +46,7 @@ class ExtendedLogger implements LoggerInterface {
     'base_url' => 'The base url of the site.',
     'request_time' => 'The main request timestamp.',
     'request_time_float' => 'The main request timestamp in milliseconds.',
-    'channel' => 'The log recor channel.',
+    'channel' => 'The log record channel.',
     'ip' => 'The user IP address.',
     'request_uri' => 'The request URI.',
     'referer' => 'The referrer.',
@@ -136,6 +137,12 @@ class ExtendedLogger implements LoggerInterface {
 
     foreach ($fields as $field) {
       switch ($field) {
+        case 'service.name':
+          if ($value = $this->config->get('service_name')) {
+            $entry->set($field, $value);
+          }
+          break;
+
         case 'message':
           $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
           $entry->set($field, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
@@ -291,7 +298,7 @@ class ExtendedLogger implements LoggerInterface {
   }
 
   /**
-   * Convert a level integer to a string representiation of the RFC log level.
+   * Convert a level integer to a string representation of the RFC log level.
    *
    * @param int $level
    *      The log message level.

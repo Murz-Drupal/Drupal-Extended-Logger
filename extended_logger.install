@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Extended Logger module.
+ */
+
+/**
+ * Add service_name configuration key.
+ */
+function extended_logger_update_10001(): void {
+  \Drupal::configFactory()->getEditable('extended_logger.settings')
+    ->set('service_name', '')
+    ->save(TRUE);
+}

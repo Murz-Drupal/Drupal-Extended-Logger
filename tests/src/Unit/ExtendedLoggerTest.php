@@ -34,6 +34,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $config = [
       'fields_custom' => ['customField2', 'custom_field_5', 'custom_field_6'],
     ] + $configDefault;
+    $config['service.name'] = 'My cool service name';
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_KEY, $config);
 
     $context = [
@@ -42,10 +43,10 @@ class ExtendedLoggerTest extends UnitTestCase {
       'customField2' => 'custom2 value',
       'custom_field_6' => 'custom_field_6 value',
       'metadata' => ['foo' => ['bar' => 'baz']],
-      '@placeholder' => 'Bob',
+      '@my_placeholder' => 'Bob',
     ];
-    $message_raw = 'A message from @placeholder!';
-    $message = "A message from {$context['@placeholder']}!";
+    $message_raw = 'A message from @my_placeholder!';
+    $message = "A message from {$context['@my_placeholder']}!";
 
     $resultEntryValues = [
       // The 'timestamp_float' is not static, checked separately.
@@ -60,10 +61,7 @@ class ExtendedLoggerTest extends UnitTestCase {
       'customField2' => $context['customField2'],
       'custom_field_6' => $context['custom_field_6'],
     ];
-    $resultEntry = new ExtendedLoggerEntry();
-    foreach ($resultEntryValues as $key => $value) {
-      $resultEntry->$key = $value;
-    }
+    $resultEntry = new ExtendedLoggerEntry($resultEntryValues);
 
     $logLevel = RfcLogLevel::WARNING;
 
@@ -73,13 +71,15 @@ class ExtendedLoggerTest extends UnitTestCase {
       ['persist'],
     );
     $logger->method('persist')->willReturnCallback(
-      function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry) {
+      function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry, $config) {
+        $this->assertEquals($config['service_name'], $entry->get('service.name'));
+        $entry->delete('service.name');
         $this->assertIsFloat($entry->get('timestamp_float'));
         $entry->delete('timestamp_float');
         if ($entry->get('trace_id')) {
           $entry->delete('trace_id');
         }
-        $this->assertEquals(json_encode($resultEntry), $entry->__toString());
+        $this->assertEquals(json_encode($resultEntry->getData()), $entry->__toString());
         $this->assertEquals($logLevel, $level);
       });
 

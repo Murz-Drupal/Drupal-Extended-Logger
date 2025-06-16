@@ -18,7 +18,7 @@ interface ExtendedLoggerEntryInterface {
    * @param array $data
    *   (optional) An array with initial data.
    */
-  public function __construct(array $data = NULL);
+  public function __construct(?array $data = NULL);
 
   /**
    * Sets a value to the log entry by a key.
@@ -72,7 +72,7 @@ interface ExtendedLoggerEntryInterface {
   public function getData(): mixed;
 
   /**
-   * Converts the log data to the string represenation.
+   * Converts the log data to the string representation.
    */
   public function __toString(): string;
 

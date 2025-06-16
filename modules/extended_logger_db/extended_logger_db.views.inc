@@ -17,7 +17,7 @@ function extended_logger_db_views_data() {
       'base' => [
         'field' => 'id',
         'title' => t('Extended Logger logs'),
-        'help' => t('Stores log entries from the Extened Logger module.'),
+        'help' => t('Stores log entries from the Extended Logger module.'),
       ],
     ],
     'id' => [

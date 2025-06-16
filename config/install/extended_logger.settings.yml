@@ -1,4 +1,5 @@
 fields:
+  - service.name
   - timestamp_float
   - message
   - message_raw
@@ -16,6 +17,7 @@ fields:
   - exception
 fields_all: false
 fields_custom: []
+service_name: drupal
 target: file
 target_syslog_identity: drupal
 target_syslog_facility: 128

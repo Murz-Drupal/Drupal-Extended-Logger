@@ -23,7 +23,7 @@ class ExtendedLoggerEntry implements ExtendedLoggerEntryInterface {
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $data = NULL) {
+  public function __construct(?array $data = NULL) {
     $this->data = is_array($data)
       ? $data
       : [];
