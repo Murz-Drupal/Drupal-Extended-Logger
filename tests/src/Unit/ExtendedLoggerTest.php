@@ -55,6 +55,7 @@ class ExtendedLoggerTest extends UnitTestCase {
       // The 'timestamp_float' is not static, checked separately.
       'message' => $message,
       'message_raw' => $message_raw,
+      '@my_placeholder' => 'Bob',
       'base_url' => $base_url,
       'request_time_float' => $server['REQUEST_TIME_FLOAT'],
       'ip' => '192.168.1.1',

@@ -19,6 +19,7 @@ use OpenTelemetry\SDK\Trace\Span;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 // A workaround to make the logger compatible with Drupal 9.x and 10.x together.
@@ -49,6 +50,7 @@ class ExtendedLogger implements LoggerInterface {
   const CONFIG_KEY_TARGET_OUTPUT_STREAM = 'target_output_stream';
   const CONFIG_KEY_LOG_LINE_MAX_LENGTH = 'log_line_max_length';
   const CONFIG_KEY_BACKLOG_ITEMS_LIMIT = 'backlog_items_limit';
+  const CONFIG_KEY_SKIP_EVENT_DISPATCH = 'skip_event_dispatch';
 
   const LOGGER_FIELDS = [
     'service.name' => 'The name of the service that produce the log.',
@@ -98,27 +100,48 @@ class ExtendedLogger implements LoggerInterface {
   protected ?ExtendedLoggerDbPersister $dbPersister = NULL;
 
   /**
+   * The request stack service.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack|null
+   */
+  protected ?RequestStack $requestStack = NULL;
+
+  /**
    * Constructs a ExtendedLogger object.
    *
    * @param \Drupal\Component\DependencyInjection\ContainerInterface $container
-   *   The parser to use when extracting message variables.
+   *   The service container for lazy loading services.
    * @param \Drupal\Core\Logger\LogMessageParserInterface $parser
    *   The parser to use when extracting message variables.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The configuration factory.
-   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
-   *   The request stack.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
-   *   The 'event_dispatcher' service.
    */
   public function __construct(
     protected ContainerInterface $container,
     protected LogMessageParserInterface $parser,
     protected ConfigFactoryInterface $configFactory,
-    protected RequestStack $requestStack,
-    protected EventDispatcherInterface $eventDispatcher,
   ) {
     $this->config = $this->configFactory->get(self::CONFIG_NAME);
+  }
+
+  /**
+   * Gets the request stack service.
+   */
+  protected function getCurrentRequest(): ?Request {
+    if ($this->container->has('request_stack') === FALSE) {
+      return NULL;
+    }
+    if ($this->requestStack === NULL) {
+      $this->requestStack = $this->container->get('request_stack');
+    }
+    return $this->requestStack->getCurrentRequest();
+  }
+
+  /**
+   * Gets the event dispatcher service.
+   */
+  protected function getEventDispatcher(): EventDispatcherInterface {
+    return $this->container->get('event_dispatcher');
   }
 
   /**
@@ -133,13 +156,6 @@ class ExtendedLogger implements LoggerInterface {
       );
     }
     return $this->syslogConnectionOpened;
-  }
-
-  /**
-   * Returns a list of enabled fields in the configuration.
-   */
-  public function getFields(): array {
-    return $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
   }
 
   /**
@@ -158,7 +174,6 @@ class ExtendedLogger implements LoggerInterface {
     }
 
     $entry = new ExtendedLoggerEntry();
-
     foreach ($fields as $field) {
       switch ($field) {
         case 'service.name':
@@ -168,12 +183,16 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'message':
-          $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-          $entry->set($field, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
+          $entry->set($field, empty($messagePlaceholders) ? $message : strtr($message, $messagePlaceholders));
           break;
 
         case 'message_raw':
           $entry->set($field, $message);
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
+          foreach ($messagePlaceholders as $key => $value) {
+            $entry->set($key, $value);
+          }
           break;
 
         case 'base_url':
@@ -189,13 +208,13 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'request_time':
-          if ($request ??= $this->requestStack->getCurrentRequest()) {
+          if ($request ??= $this->getCurrentRequest()) {
             $entry->set($field, $request->server->get('REQUEST_TIME'));
           }
           break;
 
         case 'request_time_float':
-          if ($request ??= $this->requestStack->getCurrentRequest()) {
+          if ($request ??= $this->getCurrentRequest()) {
             $entry->set($field, $request->server->get('REQUEST_TIME_FLOAT'));
           }
           break;
@@ -253,10 +272,9 @@ class ExtendedLogger implements LoggerInterface {
           $entry->set($field, $value);
         }
       }
-      $entry->set($field, $context[$field]);
     }
-    else {
-      foreach ($this->config->get(self::CONFIG_KEY_FIELDS_CUSTOM) ?? [] as $field) {
+    elseif ($fieldsCustom = $this->config->get('fields_custom')) {
+      foreach ($fieldsCustom as $field) {
         if (isset($context[$field])) {
           $entry->set($field, $context[$field]);
         }
@@ -275,10 +293,13 @@ class ExtendedLogger implements LoggerInterface {
       }
     }
 
-    $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
-    $this->eventDispatcher->dispatch($event);
+    if (!$this->config->get(self::CONFIG_KEY_SKIP_EVENT_DISPATCH)) {
+      $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
+      $this->getEventDispatcher()->dispatch($event);
+      $entry = $event->entry;
+    }
 
-    $this->persist($event->entry, $level);
+    $this->persist($entry, $level);
   }
 
   /**
@@ -290,7 +311,7 @@ class ExtendedLogger implements LoggerInterface {
    *      The log entry level.
    */
   protected function persist(ExtendedLoggerEntryInterface $entry, int $level): void {
-    $target = $this->config->get(self::CONFIG_KEY_TARGET) ?? 'syslog';
+    $target = $this->config->get(self::CONFIG_KEY_TARGET) ?? 'output';
     switch ($target) {
       case 'syslog':
         if (!$this->getSyslogConnection()) {

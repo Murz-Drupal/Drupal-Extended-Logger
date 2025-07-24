@@ -46,3 +46,6 @@ extended_logger.settings:
       type: integer
       label: Backlog items limit
       nullable: true
+    skip_event_dispatch:
+      type: boolean
+      label: Skip Dispatching the Logger Event

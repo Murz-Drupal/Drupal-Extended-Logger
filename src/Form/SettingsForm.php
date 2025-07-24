@@ -198,6 +198,12 @@ class SettingsForm extends ConfigFormBase {
       '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT,
     ];
 
+    $form[ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH),
+      '#description' => $this->t('If checked, the module will not dispatch events for log entries. This is useful for performance reasons if you do not have any subscribers for the log entry.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH,
+    ];
     return parent::buildForm($form, $form_state);
   }
 
