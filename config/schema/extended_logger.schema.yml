@@ -35,3 +35,17 @@ extended_logger.settings:
     target_output_stream:
       type: string
       label: Output stream
+    log_line_max_length:
+      type: integer
+      label: Log line maximum length
+      nullable: true
+      constraints:
+        Range:
+          min: 255
+    backlog_items_limit:
+      type: integer
+      label: Backlog items limit
+      nullable: true
+    skip_event_dispatch:
+      type: boolean
+      label: Skip Dispatching the Logger Event

@@ -1,0 +1,35 @@
+{
+  "description": "This default CSpell configuration for contrib projects is based on core/.cspell.json, extended by custom fixes. Some of the arrays are expanded in scripts/prepare-cspell.php. See https://project.pages.drupalcode.org/gitlab_templates/jobs/cspell/ for more details.",
+  "language": "en-US",
+  "allowCompoundWords": false,
+  "globRoot": ".",
+  "minWordLength": 4,
+  "ignorePaths": [],
+  "ignoreRegExpList": [
+    "^msgstr .*",
+    "!!binary .*",
+    "%[0-9][0-9A-F]",
+    "\\Wi18n",
+    "\\x{[0-9A-F]{4,5}}"
+  ],
+  "dictionaries": [],
+  "dictionaryDefinitions": [],
+  "words": [],
+  "flagWords": [
+    "blacklist->blocklist, denylist",
+    "blacklists->denylists",
+    "blacklisted->denylisted",
+    "e-mail",
+    "grey",
+    "queuing",
+    "whitelist:allowlist",
+    "whitelists:allowlists",
+    "whitelisted:allowlisted"
+  ],
+  "overrides": [
+    {
+      "filename": "**/{*.engine,*.inc,*.install,*.module,*.profile,*.theme}",
+      "languageId": "php"
+    }
+  ]
+}

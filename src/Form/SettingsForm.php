@@ -43,24 +43,24 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames() {
-    return [ExtendedLogger::CONFIG_KEY];
+    return [ExtendedLogger::CONFIG_NAME];
   }
 
   /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $config = $this->config(ExtendedLogger::CONFIG_KEY);
-    $this->settingsTyped = $this->configTyped->get(ExtendedLogger::CONFIG_KEY);
+    $config = $this->config(ExtendedLogger::CONFIG_NAME);
+    $this->settingsTyped = $this->configTyped->get(ExtendedLogger::CONFIG_NAME);
 
-    $enabledFields = $config->get('fields') ?? [];
+    $enabledFields = $config->get(ExtendedLogger::CONFIG_KEY_FIELDS) ?? [];
 
-    $form['fields'] = [
+    $form[ExtendedLogger::CONFIG_KEY_FIELDS] = [
       '#type' => 'checkboxes',
-      '#title' => $this->getSettingLabel('fields'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS),
       '#description' => $this->t('Enable fields which should be present in the log entry.'),
       '#options' => [],
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS,
       // Use the `#default_value` because need a custom preparation of the
       // values from the configuration.
       '#default_value' => array_merge($enabledFields, $enabledFields),
@@ -73,21 +73,21 @@ class SettingsForm extends ConfigFormBase {
       // @codingStandardsIgnoreEnd
     }
 
-    $form['fields_all'] = [
+    $form[ExtendedLogger::CONFIG_KEY_FIELDS_ALL] = [
       '#type' => 'checkbox',
-      '#title' => $this->getSettingLabel('fields_all'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS_ALL),
       '#description' => $this->t('Enables adding all fields from the context array to the log entries.'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields_all',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS_ALL,
     ];
 
-    $form['fields_custom'] = [
+    $form[ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('fields_custom'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM),
       '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':fields_custom',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM,
       // Use the `#default_value` because need a custom preparation of the
       // values from the configuration.
-      '#default_value' => implode(', ', $config->get('fields_custom') ?? []),
+      '#default_value' => implode(', ', $config->get(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM) ?? []),
       '#states' => [
         'visible' => [
           ':input[name="fields_all"]' => ['checked' => FALSE],
@@ -95,54 +95,47 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['service_name'] = [
-      '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('service_name'),
-      '#description' => $this->t('The name of the service to identify the log source.'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':service_name',
-    ];
-
-    $form['target'] = [
+    $form[ExtendedLogger::CONFIG_KEY_TARGET] = [
       '#type' => 'radios',
-      '#title' => $this->getSettingLabel('target'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET),
       '#options' => [
-        'syslog' => $this->t('Syslog'),
-        'file' => $this->t('File'),
         'output' => $this->t('Output'),
+        'file' => $this->t('File'),
+        'syslog' => $this->t('Syslog'),
         'database' => $this->t('Database'),
         'none' => $this->t('None'),
       ],
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET,
     ];
-    $form['target']['syslog']['#description'] = $this->t('Persists to a syslog daemon. Requires syslog daemon to be available.');
-    $form['target']['file']['#description'] = $this->t('Writes log to a file. Not recommended for production.');
-    $form['target']['database']['#description'] = $this->t('Persists into the database. Not recommended for production.');
-    $form['target']['output']['#description'] = $this->t('Outputs to stdout or stderr.');
-    $form['target']['none']['#description'] = $this->t('Disables internal persisting of logs. Useful with modules that stores log entries by their own.');
+    $form[ExtendedLogger::CONFIG_KEY_TARGET]['syslog']['#description'] = $this->t('Persists to a syslog daemon. Requires syslog daemon to be available.');
+    $form[ExtendedLogger::CONFIG_KEY_TARGET]['file']['#description'] = $this->t('Writes log to a file. Not recommended for production.');
+    $form[ExtendedLogger::CONFIG_KEY_TARGET]['database']['#description'] = $this->t('Persists into the database. Not recommended for production.');
+    $form[ExtendedLogger::CONFIG_KEY_TARGET]['output']['#description'] = $this->t('Outputs to stdout or stderr.');
+    $form[ExtendedLogger::CONFIG_KEY_TARGET]['none']['#description'] = $this->t('Disables internal persisting of logs. Useful when log are processed by other modules.');
 
     if (!class_exists(ExtendedLoggerDbPersister::class)) {
-      $form['target']['database']['#disabled'] = TRUE;
-      $form['target']['database']['#description'] .=
-        ' ' . $this->t('Requires Extended Logger DB module to be enabled.');
+      $form[ExtendedLogger::CONFIG_KEY_TARGET]['database']['#disabled'] = TRUE;
+      $form[ExtendedLogger::CONFIG_KEY_TARGET]['database']['#description'] .=
+        ' ' . $this->t('Requires "Extended Logger DB" module to be enabled.');
     }
 
-    $form['target_syslog_identity'] = [
+    $form[ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_IDENTITY] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('target_syslog_identity'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_IDENTITY),
       '#description' => $this->t('A string that will be prepended to every message logged to Syslog. If you have multiple sites logging to the same Syslog log file, a unique identity per site makes it easy to tell the log entries apart.'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_syslog_identity',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_IDENTITY,
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
         ],
       ],
     ];
-    $form['target_syslog_facility'] = [
+    $form[ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_FACILITY] = [
       '#type' => 'select',
-      '#title' => $this->getSettingLabel('target_syslog_identity'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_FACILITY),
       '#options' => $this->syslogFacilityList(),
       '#description' => $this->t('Depending on the system configuration, Syslog and other logging tools use this code to identify or filter messages from within the entire system log.'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_syslog_facility',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET_SYSLOG_FACILITY,
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'syslog'],
@@ -150,10 +143,10 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['target_file_path'] = [
+    $form[ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel('target_file_path'),
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_file_path',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH,
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'file'],
@@ -161,19 +154,55 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['target_output_stream'] = [
+    $form[ExtendedLogger::CONFIG_KEY_TARGET_OUTPUT_STREAM] = [
       '#type' => 'radios',
-      '#title' => $this->getSettingLabel('target_output_stream'),
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET_OUTPUT_STREAM),
       '#options' => [
+        'stderr' => $this->t('stderr (recommended)'),
         'stdout' => $this->t('stdout'),
-        'stderr' => $this->t('stderr'),
       ],
-      '#config_target' => ExtendedLogger::CONFIG_KEY . ':target_output_stream',
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET_OUTPUT_STREAM,
       '#states' => [
         'visible' => [
           ':input[name="target"]' => ['value' => 'output'],
         ],
       ],
+      '#description' => $this->t('Choose the output stream for the logs. The <code>stderr</code> is recommended to not mix the standard output with logs, for example, in drush commands.'),
+    ];
+
+    $form[ExtendedLogger::CONFIG_KEY_SERVICE_NAME] = [
+      '#type' => 'textfield',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_SERVICE_NAME),
+      '#description' => $this->t('The name of the service to identify the log source.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_SERVICE_NAME,
+    ];
+
+    $form[ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH] = [
+      '#type' => 'number',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH),
+      '#description' => $this->t('The maximum length of a log line. Put a value more than 255, or keep empty to allow any length. Syslog, Docker and some other log receivers pretty often have max line length limits and cut long JSON output producing invalid JSON lines. This usually can be resolved by configuring the receiver configuration. But the module provides a workaround from the Drupal side by cutting the exceeding part of JSON with fixing unclosed brackets and other broken parts. Common limits: Docker: 16384, Syslog: 2048.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH,
+      '#states' => [
+        'visible' => [
+          [':input[name="target"]' => ['value' => 'output']],
+          [':input[name="target"]' => ['value' => 'file']],
+          [':input[name="target"]' => ['value' => 'syslog']],
+        ],
+      ],
+    ];
+
+    $form[ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT] = [
+      '#type' => 'number',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT),
+      '#description' => $this->t('The maximum number of backtrace items to log. Set to empty to disable the limit. Usually the backtrace contains a lot of items, and it is not useful to log all of them. The default value is 8.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT,
+    ];
+
+    $form[ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH),
+      '#description' => $this->t('If checked, the module will not dispatch events for log entries. This is useful for performance reasons if you do not have any subscribers for the log entry.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_SKIP_EVENT_DISPATCH,
     ];
     return parent::buildForm($form, $form_state);
   }
@@ -186,17 +215,21 @@ class SettingsForm extends ConfigFormBase {
     // Apply form state values transformation on the validation step, instead of
     // the submit, because ConfigFormBase::validateForm() requires the values to
     // be valid to store in the configuration.
-    $fieldSelected = array_values(array_filter($form_state->getValue('fields'), function ($value, $key) {
+    $fieldSelected = array_values(array_filter($form_state->getValue(ExtendedLogger::CONFIG_KEY_FIELDS), function ($value, $key) {
       return $value != 0;
     }, ARRAY_FILTER_USE_BOTH));
-    $form_state->setValue('fields', $fieldSelected);
+    $form_state->setValue(ExtendedLogger::CONFIG_KEY_FIELDS, $fieldSelected);
 
     $fields_custom = [];
-    $fields_customString = $form_state->getValue('fields_custom');
+    $fields_customString = $form_state->getValue(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM);
     if (!empty($fields_customString)) {
       $fields_custom = array_map('trim', explode(',', $fields_customString));
     }
-    $form_state->setValue('fields_custom', $fields_custom);
+    $form_state->setValue(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM, $fields_custom);
+
+    if ($form_state->getValue(ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH) <= 0) {
+      $form_state->setValue(ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH, NULL);
+    }
 
     parent::validateForm($form, $form_state);
   }

@@ -5,7 +5,5 @@ services:
       - '@service_container'
       - '@logger.log_message_parser'
       - '@config.factory'
-      - '@request_stack'
-      - '@event_dispatcher'
     tags:
       - name: logger

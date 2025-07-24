@@ -2,6 +2,7 @@
 
 namespace Drupal\extended_logger\Logger;
 
+use Ahc\Json\Fixer;
 use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -10,6 +11,7 @@ use Drupal\Core\Logger\RfcLoggerTrait;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
 use Drupal\extended_logger\ExtendedLoggerEntry;
+use Drupal\extended_logger\ExtendedLoggerEntryInterface;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
@@ -17,6 +19,7 @@ use OpenTelemetry\SDK\Trace\Span;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 // A workaround to make the logger compatible with Drupal 9.x and 10.x together.
@@ -34,7 +37,20 @@ class ExtendedLogger implements LoggerInterface {
   use RfcLoggerTrait;
   use ExtendedLoggerTrait;
 
-  const CONFIG_KEY = 'extended_logger.settings';
+  const CONFIG_NAME = 'extended_logger.settings';
+
+  const CONFIG_KEY_FIELDS = 'fields';
+  const CONFIG_KEY_FIELDS_ALL = 'fields_all';
+  const CONFIG_KEY_FIELDS_CUSTOM = 'fields_custom';
+  const CONFIG_KEY_SERVICE_NAME = 'service_name';
+  const CONFIG_KEY_TARGET = 'target';
+  const CONFIG_KEY_TARGET_SYSLOG_IDENTITY = 'target_syslog_identity';
+  const CONFIG_KEY_TARGET_SYSLOG_FACILITY = 'target_syslog_facility';
+  const CONFIG_KEY_TARGET_FILE_PATH = 'target_file_path';
+  const CONFIG_KEY_TARGET_OUTPUT_STREAM = 'target_output_stream';
+  const CONFIG_KEY_LOG_LINE_MAX_LENGTH = 'log_line_max_length';
+  const CONFIG_KEY_BACKLOG_ITEMS_LIMIT = 'backlog_items_limit';
+  const CONFIG_KEY_SKIP_EVENT_DISPATCH = 'skip_event_dispatch';
 
   const LOGGER_FIELDS = [
     'service.name' => 'The name of the service that produce the log.',
@@ -56,7 +72,10 @@ class ExtendedLogger implements LoggerInterface {
     'link' => 'The link value from the log context.',
     'metadata' => 'The structured value of the metadata key in the log context.',
     'exception' => 'Detailed information about an exception.',
+    'backtrace' => 'Backtrace array for exceptions. Duplicate the backtrace from the exception field, so do not enable both at once to prevent duplications.',
   ];
+
+  const CUT_SUFFIX = '_cut_"';
 
   /**
    * Stores whether there is a system logger connection opened or not.
@@ -81,27 +100,48 @@ class ExtendedLogger implements LoggerInterface {
   protected ?ExtendedLoggerDbPersister $dbPersister = NULL;
 
   /**
+   * The request stack service.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack|null
+   */
+  protected ?RequestStack $requestStack = NULL;
+
+  /**
    * Constructs a ExtendedLogger object.
    *
    * @param \Drupal\Component\DependencyInjection\ContainerInterface $container
-   *   The parser to use when extracting message variables.
+   *   The service container for lazy loading services.
    * @param \Drupal\Core\Logger\LogMessageParserInterface $parser
    *   The parser to use when extracting message variables.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The configuration factory.
-   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
-   *   The request stack.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
-   *   The 'event_dispatcher' service.
    */
   public function __construct(
     protected ContainerInterface $container,
     protected LogMessageParserInterface $parser,
     protected ConfigFactoryInterface $configFactory,
-    protected RequestStack $requestStack,
-    protected EventDispatcherInterface $eventDispatcher,
   ) {
-    $this->config = $this->configFactory->get(self::CONFIG_KEY);
+    $this->config = $this->configFactory->get(self::CONFIG_NAME);
+  }
+
+  /**
+   * Gets the request stack service.
+   */
+  protected function getCurrentRequest(): ?Request {
+    if ($this->container->has('request_stack') === FALSE) {
+      return NULL;
+    }
+    if ($this->requestStack === NULL) {
+      $this->requestStack = $this->container->get('request_stack');
+    }
+    return $this->requestStack->getCurrentRequest();
+  }
+
+  /**
+   * Gets the event dispatcher service.
+   */
+  protected function getEventDispatcher(): EventDispatcherInterface {
+    return $this->container->get('event_dispatcher');
   }
 
   /**
@@ -110,19 +150,12 @@ class ExtendedLogger implements LoggerInterface {
   protected function getSyslogConnection(): bool {
     if (!$this->syslogConnectionOpened) {
       $this->syslogConnectionOpened = openlog(
-        $this->config->get('target_syslog_identity') ?? '',
+        $this->config->get(self::CONFIG_KEY_TARGET_SYSLOG_IDENTITY) ?? '',
         LOG_NDELAY,
-        $this->config->get('target_syslog_facility') ?? LOG_USER,
+        $this->config->get(self::CONFIG_KEY_TARGET_SYSLOG_FACILITY) ?? LOG_USER,
       );
     }
     return $this->syslogConnectionOpened;
-  }
-
-  /**
-   * Returns a list of enabled fields in the configuration.
-   */
-  public function getFields(): array {
-    return $this->config->get('fields') ?? [];
   }
 
   /**
@@ -131,25 +164,35 @@ class ExtendedLogger implements LoggerInterface {
   public function doLog($level, $message, array $context = []) {
     global $base_url;
 
-    $fields = $this->config->get('fields') ?? [];
+    $fields = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
+
+    if (
+      isset($context['backtrace'])
+      && $limit = $this->config->get(self::CONFIG_KEY_BACKLOG_ITEMS_LIMIT)
+    ) {
+      $context['backtrace'] = array_slice($context['backtrace'], 0, $limit);
+    }
 
     $entry = new ExtendedLoggerEntry();
-
     foreach ($fields as $field) {
       switch ($field) {
         case 'service.name':
-          if ($value = $this->config->get('service_name')) {
+          if ($value = $this->config->get(self::CONFIG_KEY_SERVICE_NAME)) {
             $entry->set($field, $value);
           }
           break;
 
         case 'message':
-          $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-          $entry->set($field, empty($message_placeholders) ? $message : strtr($message, $message_placeholders));
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
+          $entry->set($field, empty($messagePlaceholders) ? $message : strtr($message, $messagePlaceholders));
           break;
 
         case 'message_raw':
           $entry->set($field, $message);
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
+          foreach ($messagePlaceholders as $key => $value) {
+            $entry->set($key, $value);
+          }
           break;
 
         case 'base_url':
@@ -165,13 +208,13 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'request_time':
-          if ($request ??= $this->requestStack->getCurrentRequest()) {
+          if ($request ??= $this->getCurrentRequest()) {
             $entry->set($field, $request->server->get('REQUEST_TIME'));
           }
           break;
 
         case 'request_time_float':
-          if ($request ??= $this->requestStack->getCurrentRequest()) {
+          if ($request ??= $this->getCurrentRequest()) {
             $entry->set($field, $request->server->get('REQUEST_TIME_FLOAT'));
           }
           break;
@@ -187,6 +230,9 @@ class ExtendedLogger implements LoggerInterface {
         case 'exception':
           if (isset($context['exception'])) {
             if ($context['exception'] instanceof \Throwable) {
+              // We use a custom implementation instead of the
+              // Drupal\Core\Utility\Error::decodeException()
+              // to produce the array in a more standard way.
               $entry->set($field, $this->exceptionToArray($context['exception']));
             }
             else {
@@ -210,6 +256,7 @@ class ExtendedLogger implements LoggerInterface {
         case 'referer':
         case 'uid':
         case 'link':
+        case 'backtrace':
           if (isset($context[$field])) {
             $entry->set($field, $context[$field]);
           }
@@ -219,16 +266,15 @@ class ExtendedLogger implements LoggerInterface {
           break;
       }
     }
-    if ($this->config->get('fields_all') ?? FALSE) {
+    if ($this->config->get(self::CONFIG_KEY_FIELDS_ALL) ?? FALSE) {
       foreach ($context as $field => $value) {
         if (!isset($fields[$field])) {
           $entry->set($field, $value);
         }
       }
-      $entry->set($field, $context[$field]);
     }
-    else {
-      foreach ($this->config->get('fields_custom') ?? [] as $field) {
+    elseif ($fieldsCustom = $this->config->get('fields_custom')) {
+      foreach ($fieldsCustom as $field) {
         if (isset($context[$field])) {
           $entry->set($field, $context[$field]);
         }
@@ -247,38 +293,41 @@ class ExtendedLogger implements LoggerInterface {
       }
     }
 
-    $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
-    $this->eventDispatcher->dispatch($event);
+    if (!$this->config->get(self::CONFIG_KEY_SKIP_EVENT_DISPATCH)) {
+      $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
+      $this->getEventDispatcher()->dispatch($event);
+      $entry = $event->entry;
+    }
 
-    $this->persist($event->entry, $level);
+    $this->persist($entry, $level);
   }
 
   /**
    * Persists a log entry to the log target.
    *
-   * @param \Drupal\extended_logger\ExtendedLoggerEntry $entry
+   * @param \Drupal\extended_logger\ExtendedLoggerEntryInterface $entry
    *   A log entry array.
    * @param int $level
    *      The log entry level.
    */
-  protected function persist(ExtendedLoggerEntry $entry, int $level): void {
-    $target = $this->config->get('target') ?? 'syslog';
+  protected function persist(ExtendedLoggerEntryInterface $entry, int $level): void {
+    $target = $this->config->get(self::CONFIG_KEY_TARGET) ?? 'output';
     switch ($target) {
       case 'syslog':
         if (!$this->getSyslogConnection()) {
           throw new \Exception("Can't open the connection to syslog");
         }
-        syslog($level, $entry->__toString());
+        syslog($level, $this->getEntryAsString($entry));
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('target_output_stream') ?? 'stdout', $entry->__toString() . "\n");
+        file_put_contents('php://' . $this->config->get(self::CONFIG_KEY_TARGET_OUTPUT_STREAM) ?? 'stdout', $this->getEntryAsString($entry) . "\n");
         break;
 
       case 'file':
-        $file = $this->config->get('target_file_path');
+        $file = $this->config->get(self::CONFIG_KEY_TARGET_FILE_PATH);
         if (!empty($file)) {
-          file_put_contents($file, $entry->__toString() . "\n", FILE_APPEND);
+          file_put_contents($file, $this->getEntryAsString($entry) . "\n", FILE_APPEND);
         }
         break;
 
@@ -295,6 +344,38 @@ class ExtendedLogger implements LoggerInterface {
       default:
         throw new \Exception("Configured log target \"$target\" is not supported.");
     }
+  }
+
+  /**
+   * Converts entry to string and cut to the max length with valid JSON.
+   *
+   * @param \Drupal\extended_logger\ExtendedLoggerEntryInterface $entry
+   *   The log entry.
+   *
+   * @return string
+   *   The string representation of the log entry.
+   */
+  protected function getEntryAsString(ExtendedLoggerEntryInterface $entry): string {
+    $string = $entry->__toString();
+    $maxLength = $this->config->get(self::CONFIG_KEY_LOG_LINE_MAX_LENGTH);
+    if ($maxLength > 0 && strlen($string) > $maxLength) {
+      $jsonFixer = new Fixer();
+      $cutIndicatorLength = strlen(self::CUT_SUFFIX);
+      $cutPos = $maxLength - $cutIndicatorLength - 1;
+      do {
+        $stringCut = substr($string, 0, $cutPos) . self::CUT_SUFFIX;
+        try {
+          $stringFixed = $jsonFixer->fix($stringCut);
+          $stringFixedLength = strlen($stringFixed);
+        }
+        catch (\Exception) {
+          $stringFixedLength = $maxLength + 1;
+        }
+        $cutPos -= 1;
+      } while ($stringFixedLength > $maxLength);
+      $string = $stringFixed;
+    }
+    return $string;
   }
 
   /**
@@ -336,6 +417,11 @@ class ExtendedLogger implements LoggerInterface {
       'line' => $e->getLine(),
       'trace' => $e->getTrace(),
     ];
+
+    if ($limit = $this->config->get(self::CONFIG_KEY_BACKLOG_ITEMS_LIMIT)) {
+      $array['trace'] = array_slice($array['trace'], 0, $limit);
+    }
+
     if ($ePrevious = $e->getPrevious()) {
       $array['previous'] = $this->exceptionToArray($ePrevious);
     }

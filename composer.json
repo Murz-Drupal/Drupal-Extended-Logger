@@ -3,8 +3,9 @@
     "description": "A Drupal logger with ability to store any custom additional metadata with the log entry. Supports writing to a database, file, syslog, stdout/stderr (for containers).",
     "type": "drupal-module",
     "require": {
-        "php": ">=8.0",
-        "drupal\/core": "^9.4 || ^10 || ^11"
+        "adhocore/json-fixer": "^1.0",
+        "drupal\/core": "^9.4 || ^10 || ^11",
+        "php": ">=8.0"
     },
     "require-dev": {
         "drupal/test_helpers": "^1.3.0"

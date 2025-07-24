@@ -22,4 +22,7 @@ target: file
 target_syslog_identity: drupal
 target_syslog_facility: 128
 target_file_path: drupal.log
-target_output_stream: stdout
+target_output_stream: stderr
+log_line_max_length: null
+backlog_items_limit: 8
+skip_event_dispatch: false
