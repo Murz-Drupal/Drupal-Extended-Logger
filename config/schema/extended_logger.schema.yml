@@ -42,3 +42,7 @@ extended_logger.settings:
       constraints:
         Range:
           min: 255
+    backlog_items_limit:
+      type: integer
+      label: Backlog items limit
+      nullable: true

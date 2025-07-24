@@ -48,6 +48,7 @@ class ExtendedLogger implements LoggerInterface {
   const CONFIG_KEY_TARGET_FILE_PATH = 'target_file_path';
   const CONFIG_KEY_TARGET_OUTPUT_STREAM = 'target_output_stream';
   const CONFIG_KEY_LOG_LINE_MAX_LENGTH = 'log_line_max_length';
+  const CONFIG_KEY_BACKLOG_ITEMS_LIMIT = 'backlog_items_limit';
 
   const LOGGER_FIELDS = [
     'service.name' => 'The name of the service that produce the log.',
@@ -69,6 +70,7 @@ class ExtendedLogger implements LoggerInterface {
     'link' => 'The link value from the log context.',
     'metadata' => 'The structured value of the metadata key in the log context.',
     'exception' => 'Detailed information about an exception.',
+    'backtrace' => 'Backtrace array for exceptions. Duplicate the backtrace from the exception field, so do not enable both at once to prevent duplications.',
   ];
 
   const CUT_SUFFIX = '_cut_"';
@@ -148,6 +150,13 @@ class ExtendedLogger implements LoggerInterface {
 
     $fields = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
 
+    if (
+      isset($context['backtrace'])
+      && $limit = $this->config->get(self::CONFIG_KEY_BACKLOG_ITEMS_LIMIT)
+    ) {
+      $context['backtrace'] = array_slice($context['backtrace'], 0, $limit);
+    }
+
     $entry = new ExtendedLoggerEntry();
 
     foreach ($fields as $field) {
@@ -202,6 +211,9 @@ class ExtendedLogger implements LoggerInterface {
         case 'exception':
           if (isset($context['exception'])) {
             if ($context['exception'] instanceof \Throwable) {
+              // We use a custom implementation instead of the
+              // Drupal\Core\Utility\Error::decodeException()
+              // to produce the array in a more standard way.
               $entry->set($field, $this->exceptionToArray($context['exception']));
             }
             else {
@@ -225,6 +237,7 @@ class ExtendedLogger implements LoggerInterface {
         case 'referer':
         case 'uid':
         case 'link':
+        case 'backtrace':
           if (isset($context[$field])) {
             $entry->set($field, $context[$field]);
           }
@@ -383,6 +396,11 @@ class ExtendedLogger implements LoggerInterface {
       'line' => $e->getLine(),
       'trace' => $e->getTrace(),
     ];
+
+    if ($limit = $this->config->get(self::CONFIG_KEY_BACKLOG_ITEMS_LIMIT)) {
+      $array['trace'] = array_slice($array['trace'], 0, $limit);
+    }
+
     if ($ePrevious = $e->getPrevious()) {
       $array['previous'] = $this->exceptionToArray($ePrevious);
     }

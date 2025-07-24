@@ -191,6 +191,13 @@ class SettingsForm extends ConfigFormBase {
       ],
     ];
 
+    $form[ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT] = [
+      '#type' => 'number',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT),
+      '#description' => $this->t('The maximum number of backtrace items to log. Set to empty to disable the limit. Usually the backtrace contains a lot of items, and it is not useful to log all of them. The default value is 8.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_BACKLOG_ITEMS_LIMIT,
+    ];
+
     return parent::buildForm($form, $form_state);
   }
 

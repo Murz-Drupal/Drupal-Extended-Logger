@@ -6,7 +6,7 @@
  */
 
 /**
- * Add service_name configuration key.
+ * Add the service_name configuration key.
  */
 function extended_logger_update_10001(): void {
   \Drupal::configFactory()->getEditable('extended_logger.settings')
@@ -20,5 +20,14 @@ function extended_logger_update_10001(): void {
 function extended_logger_update_10002(): void {
   \Drupal::configFactory()->getEditable('extended_logger.settings')
     ->set('log_line_max_length', NULL)
+    ->save(TRUE);
+}
+
+/**
+ * Set the backlog_items_limit configuration key.
+ */
+function extended_logger_update_10003(): void {
+  \Drupal::configFactory()->getEditable('extended_logger.settings')
+    ->set('backlog_items_limit', NULL)
     ->save(TRUE);
 }

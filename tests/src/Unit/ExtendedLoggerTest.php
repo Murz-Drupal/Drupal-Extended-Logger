@@ -6,6 +6,7 @@ namespace Drupal\Tests\extended_logger\Unit;
 
 use Drupal\Core\Logger\LogMessageParser;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Core\Utility\Error;
 use Drupal\extended_logger\ExtendedLoggerEntry;
 use Drupal\extended_logger\Logger\ExtendedLogger;
 use Drupal\test_helpers\TestHelpers;
@@ -123,6 +124,7 @@ class ExtendedLoggerTest extends UnitTestCase {
 
     $this->assertEquals($config['target_file_path'], $calls[0][0]);
     $this->assertEquals(json_encode($entryData) . "\n", $calls[0][1]);
+    TestHelpers::unmockAllPhpFunctions();
 
     // Test writing to the stderr.
     $config = [
@@ -136,6 +138,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     TestHelpers::callPrivateMethod($logger, 'persist', [$entry, $level]);
     $this->assertEquals('php://stderr', $calls[0][0]);
     $this->assertEquals($entryDataCut129 . "\n", $calls[0][1]);
+    TestHelpers::unmockAllPhpFunctions();
 
     // Test writing to syslog.
     $config = [
@@ -154,6 +157,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $this->assertEquals($config['target_syslog_facility'], $openlogCalls[0][2]);
     $this->assertEquals($level, $syslogCalls[0][0]);
     $this->assertEquals($entry->__toString(), $syslogCalls[0][1]);
+    TestHelpers::unmockAllPhpFunctions();
   }
 
   /**
@@ -204,6 +208,39 @@ class ExtendedLoggerTest extends UnitTestCase {
       // The result should contain the cut indicator if truncated.
       $this->assertStringContainsString(ExtendedLogger::CUT_SUFFIX, $result);
     }
+  }
+
+  /**
+   * @covers ::doLog
+   * @covers ::exceptionToArray
+   */
+  public function testEntryWithException() {
+    $file = tempnam(sys_get_temp_dir(), 'extended_logger_test_testEntryWithException_');
+    $limit = rand(2, 5);
+    $config = [
+      'fields' => [
+        'exception',
+        'backtrace',
+      ],
+      'target' => 'file',
+      'target_file_path' => $file,
+      'backlog_items_limit' => $limit,
+    ];
+    TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
+
+    $logger = TestHelpers::initService('extended_logger.logger');
+    $exception = new \Exception('Test exception', 0, new \Exception('Inner exception'));
+    $context = Error::decodeException($exception);
+
+    $logger->doLog(
+      Error::ERROR,
+      Error::DEFAULT_ERROR_MESSAGE,
+      $context);
+
+    $log = json_decode(file_get_contents($file), associative: TRUE);
+    unlink($file);
+    $this->assertCount($limit, $log['exception']['trace']);
+    $this->assertCount($limit, $log['backtrace']);
   }
 
 }
