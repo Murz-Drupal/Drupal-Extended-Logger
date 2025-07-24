@@ -190,7 +190,7 @@ class ExtendedLogger implements LoggerInterface {
         case 'message_raw':
           $entry->set($field, $message);
           $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
-          foreach ($messagePlaceholders as $key => $value) {
+          foreach ($messagePlaceholders ?? [] as $key => $value) {
             $entry->set($key, $value);
           }
           break;
@@ -327,6 +327,17 @@ class ExtendedLogger implements LoggerInterface {
       case 'file':
         $file = $this->config->get(self::CONFIG_KEY_TARGET_FILE_PATH);
         if (!empty($file)) {
+          // Support any Drupal stream wrapper (public://, private://,
+          // temporary://, etc.) for file paths.
+          if (str_contains($file, '://')) {
+            $wrapper = $this->container->get('stream_wrapper_manager')->getViaUri($file);
+            if ($wrapper && method_exists($wrapper, 'realpath')) {
+              $realpath = $wrapper->realpath();
+              if ($realpath !== FALSE) {
+                $file = $realpath;
+              }
+            }
+          }
           file_put_contents($file, $this->getEntryAsString($entry) . "\n", FILE_APPEND);
         }
         break;

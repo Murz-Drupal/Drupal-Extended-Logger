@@ -146,6 +146,7 @@ class SettingsForm extends ConfigFormBase {
     $form[ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH] = [
       '#type' => 'textfield',
       '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH),
+      '#description' => $this->t('Put an absolute or relative path to the log file. Relative path will be resolved to the Drupal root. You can use Drupal stream wrappers, for example, <code>temporary://drupal.log</code> or <code>private://log.jsonl</code>.'),
       '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_TARGET_FILE_PATH,
       '#states' => [
         'visible' => [

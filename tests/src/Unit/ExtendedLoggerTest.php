@@ -6,6 +6,8 @@ namespace Drupal\Tests\extended_logger\Unit;
 
 use Drupal\Core\Logger\LogMessageParser;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Core\StreamWrapper\StreamWrapperManager;
+use Drupal\Core\StreamWrapper\TemporaryStream;
 use Drupal\Core\Utility\Error;
 use Drupal\extended_logger\ExtendedLoggerEntry;
 use Drupal\extended_logger\Logger\ExtendedLogger;
@@ -159,6 +161,31 @@ class ExtendedLoggerTest extends UnitTestCase {
     $this->assertEquals($level, $syslogCalls[0][0]);
     $this->assertEquals($entry->__toString(), $syslogCalls[0][1]);
     TestHelpers::unmockAllPhpFunctions();
+  }
+
+  /**
+   * @covers ::persist
+   */
+  public function testFileStreamWrappers() {
+    $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
+    $fileName = uniqid('drupal_test_log_');
+    $config = [
+      'target' => 'file',
+      'target_file_path' => "my_wr://$fileName",
+    ] + $configDefault;
+    $fileWrapperPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $fileName;
+    TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
+
+    $streamWrapper = new TemporaryStream();
+    $streamWrapperManager = TestHelpers::service('stream_wrapper.my_wr', $streamWrapper);
+    $streamWrapperManager = TestHelpers::service('stream_wrapper_manager', new StreamWrapperManager(TestHelpers::getContainer()));
+    TestHelpers::service('file_system', initService: TRUE);
+    $streamWrapperManager->addStreamWrapper('stream_wrapper.my_wr', TemporaryStream::class, 'my_wr');
+    $logger = TestHelpers::initService('extended_logger.logger');
+    $logger->log(1, 'Foo');
+    $storedLog = json_decode(file_get_contents($fileWrapperPath), associative: TRUE);
+    $this->assertEquals('Foo', $storedLog['message']);
+    unlink($fileWrapperPath);
   }
 
   /**
