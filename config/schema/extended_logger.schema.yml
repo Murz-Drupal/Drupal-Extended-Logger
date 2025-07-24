@@ -35,3 +35,10 @@ extended_logger.settings:
     target_output_stream:
       type: string
       label: Output stream
+    log_line_max_length:
+      type: integer
+      label: Log line maximum length
+      nullable: true
+      constraints:
+        Range:
+          min: 255

@@ -2,6 +2,7 @@
 
 namespace Drupal\extended_logger\Logger;
 
+use Ahc\Json\Fixer;
 use Drupal\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -10,6 +11,7 @@ use Drupal\Core\Logger\RfcLoggerTrait;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
 use Drupal\extended_logger\ExtendedLoggerEntry;
+use Drupal\extended_logger\ExtendedLoggerEntryInterface;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
@@ -34,7 +36,18 @@ class ExtendedLogger implements LoggerInterface {
   use RfcLoggerTrait;
   use ExtendedLoggerTrait;
 
-  const CONFIG_KEY = 'extended_logger.settings';
+  const CONFIG_NAME = 'extended_logger.settings';
+
+  const CONFIG_KEY_FIELDS = 'fields';
+  const CONFIG_KEY_FIELDS_ALL = 'fields_all';
+  const CONFIG_KEY_FIELDS_CUSTOM = 'fields_custom';
+  const CONFIG_KEY_SERVICE_NAME = 'service_name';
+  const CONFIG_KEY_TARGET = 'target';
+  const CONFIG_KEY_TARGET_SYSLOG_IDENTITY = 'target_syslog_identity';
+  const CONFIG_KEY_TARGET_SYSLOG_FACILITY = 'target_syslog_facility';
+  const CONFIG_KEY_TARGET_FILE_PATH = 'target_file_path';
+  const CONFIG_KEY_TARGET_OUTPUT_STREAM = 'target_output_stream';
+  const CONFIG_KEY_LOG_LINE_MAX_LENGTH = 'log_line_max_length';
 
   const LOGGER_FIELDS = [
     'service.name' => 'The name of the service that produce the log.',
@@ -57,6 +70,8 @@ class ExtendedLogger implements LoggerInterface {
     'metadata' => 'The structured value of the metadata key in the log context.',
     'exception' => 'Detailed information about an exception.',
   ];
+
+  const CUT_SUFFIX = '_cut_"';
 
   /**
    * Stores whether there is a system logger connection opened or not.
@@ -101,7 +116,7 @@ class ExtendedLogger implements LoggerInterface {
     protected RequestStack $requestStack,
     protected EventDispatcherInterface $eventDispatcher,
   ) {
-    $this->config = $this->configFactory->get(self::CONFIG_KEY);
+    $this->config = $this->configFactory->get(self::CONFIG_NAME);
   }
 
   /**
@@ -110,9 +125,9 @@ class ExtendedLogger implements LoggerInterface {
   protected function getSyslogConnection(): bool {
     if (!$this->syslogConnectionOpened) {
       $this->syslogConnectionOpened = openlog(
-        $this->config->get('target_syslog_identity') ?? '',
+        $this->config->get(self::CONFIG_KEY_TARGET_SYSLOG_IDENTITY) ?? '',
         LOG_NDELAY,
-        $this->config->get('target_syslog_facility') ?? LOG_USER,
+        $this->config->get(self::CONFIG_KEY_TARGET_SYSLOG_FACILITY) ?? LOG_USER,
       );
     }
     return $this->syslogConnectionOpened;
@@ -122,7 +137,7 @@ class ExtendedLogger implements LoggerInterface {
    * Returns a list of enabled fields in the configuration.
    */
   public function getFields(): array {
-    return $this->config->get('fields') ?? [];
+    return $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
   }
 
   /**
@@ -131,14 +146,14 @@ class ExtendedLogger implements LoggerInterface {
   public function doLog($level, $message, array $context = []) {
     global $base_url;
 
-    $fields = $this->config->get('fields') ?? [];
+    $fields = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
 
     $entry = new ExtendedLoggerEntry();
 
     foreach ($fields as $field) {
       switch ($field) {
         case 'service.name':
-          if ($value = $this->config->get('service_name')) {
+          if ($value = $this->config->get(self::CONFIG_KEY_SERVICE_NAME)) {
             $entry->set($field, $value);
           }
           break;
@@ -219,7 +234,7 @@ class ExtendedLogger implements LoggerInterface {
           break;
       }
     }
-    if ($this->config->get('fields_all') ?? FALSE) {
+    if ($this->config->get(self::CONFIG_KEY_FIELDS_ALL) ?? FALSE) {
       foreach ($context as $field => $value) {
         if (!isset($fields[$field])) {
           $entry->set($field, $value);
@@ -228,7 +243,7 @@ class ExtendedLogger implements LoggerInterface {
       $entry->set($field, $context[$field]);
     }
     else {
-      foreach ($this->config->get('fields_custom') ?? [] as $field) {
+      foreach ($this->config->get(self::CONFIG_KEY_FIELDS_CUSTOM) ?? [] as $field) {
         if (isset($context[$field])) {
           $entry->set($field, $context[$field]);
         }
@@ -256,29 +271,29 @@ class ExtendedLogger implements LoggerInterface {
   /**
    * Persists a log entry to the log target.
    *
-   * @param \Drupal\extended_logger\ExtendedLoggerEntry $entry
+   * @param \Drupal\extended_logger\ExtendedLoggerEntryInterface $entry
    *   A log entry array.
    * @param int $level
    *      The log entry level.
    */
-  protected function persist(ExtendedLoggerEntry $entry, int $level): void {
-    $target = $this->config->get('target') ?? 'syslog';
+  protected function persist(ExtendedLoggerEntryInterface $entry, int $level): void {
+    $target = $this->config->get(self::CONFIG_KEY_TARGET) ?? 'syslog';
     switch ($target) {
       case 'syslog':
         if (!$this->getSyslogConnection()) {
           throw new \Exception("Can't open the connection to syslog");
         }
-        syslog($level, $entry->__toString());
+        syslog($level, $this->getEntryAsString($entry));
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get('target_output_stream') ?? 'stdout', $entry->__toString() . "\n");
+        file_put_contents('php://' . $this->config->get(self::CONFIG_KEY_TARGET_OUTPUT_STREAM) ?? 'stdout', $this->getEntryAsString($entry) . "\n");
         break;
 
       case 'file':
-        $file = $this->config->get('target_file_path');
+        $file = $this->config->get(self::CONFIG_KEY_TARGET_FILE_PATH);
         if (!empty($file)) {
-          file_put_contents($file, $entry->__toString() . "\n", FILE_APPEND);
+          file_put_contents($file, $this->getEntryAsString($entry) . "\n", FILE_APPEND);
         }
         break;
 
@@ -295,6 +310,38 @@ class ExtendedLogger implements LoggerInterface {
       default:
         throw new \Exception("Configured log target \"$target\" is not supported.");
     }
+  }
+
+  /**
+   * Converts entry to string and cut to the max length with valid JSON.
+   *
+   * @param \Drupal\extended_logger\ExtendedLoggerEntryInterface $entry
+   *   The log entry.
+   *
+   * @return string
+   *   The string representation of the log entry.
+   */
+  protected function getEntryAsString(ExtendedLoggerEntryInterface $entry): string {
+    $string = $entry->__toString();
+    $maxLength = $this->config->get(self::CONFIG_KEY_LOG_LINE_MAX_LENGTH);
+    if ($maxLength > 0 && strlen($string) > $maxLength) {
+      $jsonFixer = new Fixer();
+      $cutIndicatorLength = strlen(self::CUT_SUFFIX);
+      $cutPos = $maxLength - $cutIndicatorLength - 1;
+      do {
+        $stringCut = substr($string, 0, $cutPos) . self::CUT_SUFFIX;
+        try {
+          $stringFixed = $jsonFixer->fix($stringCut);
+          $stringFixedLength = strlen($stringFixed);
+        }
+        catch (\Exception) {
+          $stringFixedLength = $maxLength + 1;
+        }
+        $cutPos -= 1;
+      } while ($stringFixedLength > $maxLength);
+      $string = $stringFixed;
+    }
+    return $string;
   }
 
   /**

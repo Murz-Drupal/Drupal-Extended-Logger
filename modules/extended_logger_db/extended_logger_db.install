@@ -73,7 +73,7 @@ function extended_logger_db_schema() {
  * Implements hook_install().
  */
 function extended_logger_db_install() {
-  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_KEY)
+  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_NAME)
     ->set('target', 'database')
     ->save();
 }
@@ -82,7 +82,7 @@ function extended_logger_db_install() {
  * Implements hook_uninstall().
  */
 function extended_logger_db_uninstall() {
-  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_KEY)
+  \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_NAME)
     ->set('target', 'file')
     ->save();
 }

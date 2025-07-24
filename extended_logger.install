@@ -13,3 +13,12 @@ function extended_logger_update_10001(): void {
     ->set('service_name', '')
     ->save(TRUE);
 }
+
+/**
+ * Add the log_line_max_length configuration key.
+ */
+function extended_logger_update_10002(): void {
+  \Drupal::configFactory()->getEditable('extended_logger.settings')
+    ->set('log_line_max_length', NULL)
+    ->save(TRUE);
+}

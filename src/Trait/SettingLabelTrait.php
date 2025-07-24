@@ -21,7 +21,7 @@ trait SettingLabelTrait {
     try {
       $label = $this->settingsTyped->get($key)->getDataDefinition()->getLabel();
     }
-    catch (\InvalidArgumentException $e) {
+    catch (\InvalidArgumentException) {
       $label = $fallback ?: "[$key]";
     }
     return $label;

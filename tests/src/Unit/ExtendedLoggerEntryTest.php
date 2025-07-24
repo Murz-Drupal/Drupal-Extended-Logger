@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\extended_logger\Unit;
 
 use Drupal\extended_logger\ExtendedLoggerEntry;
