@@ -3,7 +3,9 @@ services:
     class: Drupal\extended_logger\Logger\ExtendedLogger
     arguments:
       - '@service_container'
-      - '@logger.log_message_parser'
+      - '@Drupal\extended_logger\Logger\ExtendedLogMessageParser'
       - '@config.factory'
     tags:
       - name: logger
+
+  Drupal\extended_logger\Logger\ExtendedLogMessageParser: ~

@@ -1,0 +1,6 @@
+services:
+  # Replaces the core logger.log_message_parser service with the extended logger fallback parser.
+  logger.log_message_parser:
+    class: Drupal\extended_logger_fallback\Logger\ExtendedLoggerFallbackLogMessageParser
+    arguments:
+      - '@Drupal\extended_logger\Logger\ExtendedLogMessageParser'

@@ -183,13 +183,16 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'message':
-          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
-          $entry->set($field, empty($messagePlaceholders) ? $message : strtr($message, $messagePlaceholders));
+          $messageCopy = $message;
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($messageCopy, $context);
+          $messageRendered = empty($messagePlaceholders) ? $message : strtr($messageCopy, $messagePlaceholders);
+          $entry->set($field, $messageRendered);
           break;
 
         case 'message_raw':
-          $entry->set($field, $message);
-          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($message, $context);
+          $messageCopy = $message;
+          $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($messageCopy, $context);
+          $entry->set($field, $messageCopy);
           foreach ($messagePlaceholders ?? [] as $key => $value) {
             $entry->set($key, $value);
           }

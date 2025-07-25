@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\extended_logger\Unit;
 
-use Drupal\Core\Logger\LogMessageParser;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Core\StreamWrapper\StreamWrapperManager;
 use Drupal\Core\StreamWrapper\TemporaryStream;
 use Drupal\Core\Utility\Error;
 use Drupal\extended_logger\ExtendedLoggerEntry;
 use Drupal\extended_logger\Logger\ExtendedLogger;
+use Drupal\extended_logger\Logger\ExtendedLogMessageParser;
 use Drupal\test_helpers\TestHelpers;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -32,7 +32,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $server['REQUEST_TIME'] = 123;
     $server['REQUEST_TIME_FLOAT'] = 123.456;
     $request = new Request(server: $server);
-    TestHelpers::service('logger.log_message_parser', new LogMessageParser());
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     TestHelpers::service('request_stack')->push($request);
 
     $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
@@ -96,6 +96,7 @@ class ExtendedLoggerTest extends UnitTestCase {
    * @covers ::persist
    */
   public function testPersist() {
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     $entryData = [
       'service.name' => 'drupal',
       'timestamp_float' => 12345.984621,
@@ -167,6 +168,7 @@ class ExtendedLoggerTest extends UnitTestCase {
    * @covers ::persist
    */
   public function testFileStreamWrappers() {
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
     $fileName = uniqid('drupal_test_log_');
     $config = [
@@ -214,6 +216,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     $config['log_line_max_length'] = NULL;
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
 
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     $logger = TestHelpers::initService('extended_logger.logger');
     $result = TestHelpers::callPrivateMethod($logger, 'getEntryAsString', [$entry]);
     $this->assertEquals($entryAsJson, $result);
@@ -229,6 +232,7 @@ class ExtendedLoggerTest extends UnitTestCase {
       $config['log_line_max_length'] = $entryAsJsonLength + $cutPoint;
       TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
 
+      TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
       $logger = TestHelpers::initService('extended_logger.logger');
       $result = TestHelpers::callPrivateMethod($logger, 'getEntryAsString', [$entry]);
       $this->assertJson($result);
@@ -256,6 +260,7 @@ class ExtendedLoggerTest extends UnitTestCase {
     ];
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
 
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     $logger = TestHelpers::initService('extended_logger.logger');
     $exception = new \Exception('Test exception', 0, new \Exception('Inner exception'));
     $context = Error::decodeException($exception);

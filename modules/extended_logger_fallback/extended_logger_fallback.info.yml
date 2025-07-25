@@ -1,0 +1,7 @@
+name: Extended Logger Fallback
+type: module
+description: Allows using placeholders with JSONPath in the log message text for default Drupal loggers using a fallback technique to extract values from the log context.
+package: Logging
+core_version_requirement: ^9.4 || ^10 || ^11
+dependencies:
+  - extended_logger:extended_logger
