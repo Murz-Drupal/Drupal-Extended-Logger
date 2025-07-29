@@ -41,7 +41,7 @@ class ExtendedLogger implements LoggerInterface {
 
   const CONFIG_KEY_FIELDS = 'fields';
   const CONFIG_KEY_FIELDS_ALL = 'fields_all';
-  const CONFIG_KEY_FIELDS_CUSTOM = 'fields_custom';
+  const CONFIG_KEY_ENTRY_EXCLUDE_EMPTY = 'entry_exclude_empty';
   const CONFIG_KEY_SERVICE_NAME = 'service_name';
   const CONFIG_KEY_TARGET = 'target';
   const CONFIG_KEY_TARGET_SYSLOG_IDENTITY = 'target_syslog_identity';
@@ -159,12 +159,19 @@ class ExtendedLogger implements LoggerInterface {
   }
 
   /**
+   * Returns a list of enabled fields in the configuration.
+   */
+  public function getEnabledFields(): array {
+    return $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function doLog($level, $message, array $context = []) {
     global $base_url;
 
-    $fields = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
+    $fieldsEnabled = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
 
     if (
       isset($context['backtrace'])
@@ -174,7 +181,7 @@ class ExtendedLogger implements LoggerInterface {
     }
 
     $entry = new ExtendedLoggerEntry();
-    foreach ($fields as $field) {
+    foreach ($fieldsEnabled as $field) {
       switch ($field) {
         case 'service.name':
           if ($value = $this->config->get(self::CONFIG_KEY_SERVICE_NAME)) {
@@ -231,7 +238,7 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'exception':
-          if (isset($context['exception'])) {
+          if (array_key_exists($field, $context)) {
             if ($context['exception'] instanceof \Throwable) {
               // We use a custom implementation instead of the
               // Drupal\Core\Utility\Error::decodeException()
@@ -246,7 +253,7 @@ class ExtendedLogger implements LoggerInterface {
 
         // A special label "metadata" to pass any free form data.
         case 'metadata':
-          if (isset($context[$field])) {
+          if (array_key_exists($field, $context)) {
             $entry->set($field, $context[$field]);
           }
           break;
@@ -260,26 +267,23 @@ class ExtendedLogger implements LoggerInterface {
         case 'uid':
         case 'link':
         case 'backtrace':
-          if (isset($context[$field])) {
+          if (array_key_exists($field, $context)) {
             $entry->set($field, $context[$field]);
           }
           break;
 
         default:
+          if (array_key_exists($field, $context)) {
+            $entry->set($field, $context[$field]);
+          }
           break;
       }
     }
+
     if ($this->config->get(self::CONFIG_KEY_FIELDS_ALL) ?? FALSE) {
       foreach ($context as $field => $value) {
-        if (!isset($fields[$field])) {
+        if (!isset($fieldsEnabled[$field])) {
           $entry->set($field, $value);
-        }
-      }
-    }
-    elseif ($fieldsCustom = $this->config->get('fields_custom')) {
-      foreach ($fieldsCustom as $field) {
-        if (isset($context[$field])) {
-          $entry->set($field, $context[$field]);
         }
       }
     }
@@ -300,6 +304,10 @@ class ExtendedLogger implements LoggerInterface {
       $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
       $this->getEventDispatcher()->dispatch($event);
       $entry = $event->entry;
+    }
+
+    if ($this->config->get(self::CONFIG_KEY_ENTRY_EXCLUDE_EMPTY) ?? FALSE) {
+      $entry->cleanEmptyValues();
     }
 
     $this->persist($entry, $level);

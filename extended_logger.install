@@ -31,3 +31,18 @@ function extended_logger_update_10003(): void {
     ->set('backlog_items_limit', NULL)
     ->save(TRUE);
 }
+
+/**
+ * Migrate config to new format: join custom fields, entry_exclude_empty.
+ */
+function extended_logger_update_10004(): void {
+  $config = \Drupal::configFactory()->getEditable('extended_logger.settings');
+  $fields = $config->get('fields') ?? [];
+  $fieldsCustom = $config->get('fields_custom') ?? [];
+  array_push($fields, ...$fieldsCustom);
+  $fields = array_unique($fields);
+  $config->set('fields', array_values($fields));
+  $config->clear('fields_custom');
+  $config->set('entry_exclude_empty', FALSE);
+  $config->save(TRUE);
+}

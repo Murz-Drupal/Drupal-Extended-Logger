@@ -55,6 +55,17 @@ class SettingsForm extends ConfigFormBase {
 
     $enabledFields = $config->get(ExtendedLogger::CONFIG_KEY_FIELDS) ?? [];
 
+    $form[ExtendedLogger::CONFIG_KEY_FIELDS_ALL] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS_ALL),
+      '#description' => $this->t('Enables adding all fields from the context array to the log entries.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS_ALL,
+    ];
+
+    $enabledPredefinedFields = array_keys(ExtendedLogger::LOGGER_FIELDS);
+    $enabledFieldsFromPredefined = array_intersect($enabledFields, $enabledPredefinedFields);
+    $enabledFieldsCustom = array_diff($enabledFields, $enabledFieldsFromPredefined);
+
     $form[ExtendedLogger::CONFIG_KEY_FIELDS] = [
       '#type' => 'checkboxes',
       '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS),
@@ -63,7 +74,12 @@ class SettingsForm extends ConfigFormBase {
       '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS,
       // Use the `#default_value` because need a custom preparation of the
       // values from the configuration.
-      '#default_value' => array_merge($enabledFields, $enabledFields),
+      '#default_value' => array_merge($enabledFieldsFromPredefined, $enabledFieldsFromPredefined),
+      '#states' => [
+        'visible' => [
+          ':input[name="fields_all"]' => ['checked' => FALSE],
+        ],
+      ],
     ];
     foreach (ExtendedLogger::LOGGER_FIELDS as $field => $description) {
       // Use ignore till the https://www.drupal.org/project/coder/issues/3326197
@@ -73,26 +89,25 @@ class SettingsForm extends ConfigFormBase {
       // @codingStandardsIgnoreEnd
     }
 
-    $form[ExtendedLogger::CONFIG_KEY_FIELDS_ALL] = [
-      '#type' => 'checkbox',
-      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS_ALL),
-      '#description' => $this->t('Enables adding all fields from the context array to the log entries.'),
-      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS_ALL,
-    ];
-
-    $form[ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM] = [
+    $form['fields_custom'] = [
       '#type' => 'textfield',
-      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM),
+      '#title' => $this->t('Custom fields'),
       '#description' => $this->t('A comma separated list of additional fields from the context array to include.'),
-      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM,
       // Use the `#default_value` because need a custom preparation of the
       // values from the configuration.
-      '#default_value' => implode(', ', $config->get(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM) ?? []),
+      '#default_value' => implode(', ', $enabledFieldsCustom),
       '#states' => [
         'visible' => [
           ':input[name="fields_all"]' => ['checked' => FALSE],
         ],
       ],
+    ];
+
+    $form[ExtendedLogger::CONFIG_KEY_ENTRY_EXCLUDE_EMPTY] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel(ExtendedLogger::CONFIG_KEY_ENTRY_EXCLUDE_EMPTY),
+      '#description' => $this->t('Enables excluding empty fields (with NULL values and empty strings, zero numeric values are kept) from the log entries.'),
+      '#config_target' => ExtendedLogger::CONFIG_NAME . ':' . ExtendedLogger::CONFIG_KEY_ENTRY_EXCLUDE_EMPTY,
     ];
 
     $form[ExtendedLogger::CONFIG_KEY_TARGET] = [
@@ -216,17 +231,13 @@ class SettingsForm extends ConfigFormBase {
     // Apply form state values transformation on the validation step, instead of
     // the submit, because ConfigFormBase::validateForm() requires the values to
     // be valid to store in the configuration.
-    $fieldSelected = array_values(array_filter($form_state->getValue(ExtendedLogger::CONFIG_KEY_FIELDS), function ($value, $key) {
+    $fieldsSelected = array_values(array_filter($form_state->getValue(ExtendedLogger::CONFIG_KEY_FIELDS), function ($value, $key) {
       return $value != 0;
     }, ARRAY_FILTER_USE_BOTH));
-    $form_state->setValue(ExtendedLogger::CONFIG_KEY_FIELDS, $fieldSelected);
-
-    $fields_custom = [];
-    $fields_customString = $form_state->getValue(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM);
-    if (!empty($fields_customString)) {
-      $fields_custom = array_map('trim', explode(',', $fields_customString));
+    if ($fieldsCustom = array_filter(array_map('trim', explode(',', $form_state->getValue('fields_custom'))))) {
+      $fieldsSelected = array_unique(array_merge($fieldsSelected, $fieldsCustom));
     }
-    $form_state->setValue(ExtendedLogger::CONFIG_KEY_FIELDS_CUSTOM, $fields_custom);
+    $form_state->setValue(ExtendedLogger::CONFIG_KEY_FIELDS, array_values($fieldsSelected));
 
     if ($form_state->getValue(ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH) <= 0) {
       $form_state->setValue(ExtendedLogger::CONFIG_KEY_LOG_LINE_MAX_LENGTH, NULL);

@@ -24,6 +24,7 @@ class ExtendedLoggerTest extends UnitTestCase {
 
   /**
    * @covers ::__construct
+   * @covers ::getEnabledFields
    * @covers ::log
    */
   public function testLog() {
@@ -35,25 +36,32 @@ class ExtendedLoggerTest extends UnitTestCase {
     TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
     TestHelpers::service('request_stack')->push($request);
 
-    $configDefault = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
-    $config = [
-      'fields_custom' => ['customField2', 'custom_field_5', 'custom_field_6'],
-    ] + $configDefault;
+    $config = Yaml::parseFile(TestHelpers::getModuleFilePath('config/install/extended_logger.settings.yml'));
+    $config['fields'] = array_merge($config['fields'], [
+      'customField2',
+      'custom_field_5',
+      'custom_field_6',
+      'custom_field_7',
+      'custom_field_8',
+    ]);
+    $config['entry_exclude_empty'] = TRUE;
     $config['service.name'] = 'My cool service name';
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
 
     $context = [
       'ip' => '192.168.1.1',
       'timestamp' => 1234567,
-      'customField2' => 'custom2 value',
-      'custom_field_6' => 'custom_field_6 value',
+      'customField2' => 0,
+      'customField3' => 'custom3 value',
+      'custom_field_6' => NULL,
+      'custom_field_8' => '0',
       'metadata' => ['foo' => ['bar' => 'baz']],
       '@my_placeholder' => 'Bob',
     ];
     $message_raw = 'A message from @my_placeholder!';
     $message = "A message from {$context['@my_placeholder']}!";
 
-    $resultEntryValues = [
+    $resultEntryValuesAll = [
       // The 'timestamp_float' is not static, checked separately.
       'message' => $message,
       'message_raw' => $message_raw,
@@ -66,8 +74,15 @@ class ExtendedLoggerTest extends UnitTestCase {
       'metadata' => $context['metadata'],
       'customField2' => $context['customField2'],
       'custom_field_6' => $context['custom_field_6'],
+      'custom_field_8' => '0',
+      // Custom values should be at the end of the entry.
+      'customField3' => $context['customField3'],
     ];
-    $resultEntry = new ExtendedLoggerEntry($resultEntryValues);
+    $resultEntryValuesEnabled = $resultEntryValuesAll;
+    unset($resultEntryValuesEnabled['custom_field_6']);
+    unset($resultEntryValuesEnabled['customField3']);
+
+    $resultEntry = new ExtendedLoggerEntry($resultEntryValuesEnabled);
 
     $logLevel = RfcLogLevel::WARNING;
 
@@ -76,6 +91,10 @@ class ExtendedLoggerTest extends UnitTestCase {
       NULL,
       ['persist'],
     );
+
+    $fields = $logger->getEnabledFields();
+    $this->assertEquals($config['fields'], $fields);
+
     $logger->method('persist')->willReturnCallback(
       function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry, $config) {
         $this->assertEquals($config['service_name'], $entry->get('service.name'));
@@ -90,6 +109,38 @@ class ExtendedLoggerTest extends UnitTestCase {
       });
 
     $logger->log($logLevel, $message_raw, $context);
+
+    // Test "fields_all".
+    $config['fields_all'] = TRUE;
+    $config['entry_exclude_empty'] = FALSE;
+    TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
+    $logger = TestHelpers::initService(
+      'extended_logger.logger',
+      NULL,
+      ['persist'],
+    );
+    $resultEntry = new ExtendedLoggerEntry($resultEntryValuesAll);
+
+    $fields = $logger->getEnabledFields();
+    $this->assertEquals($config['fields'], $fields);
+
+    $logger->method('persist')->willReturnCallback(
+      function (ExtendedLoggerEntry $entry, int $level) use ($logLevel, $resultEntry, $config) {
+        $this->assertEquals($config['service_name'], $entry->get('service.name'));
+        $entry->delete('service.name');
+        $this->assertIsFloat($entry->get('timestamp_float'));
+        $entry->delete('timestamp_float');
+        $this->assertIsInt($entry->get('timestamp'));
+        $entry->delete('timestamp');
+        if ($entry->get('trace_id')) {
+          $entry->delete('trace_id');
+        }
+        $this->assertEquals(json_encode($resultEntry->getData()), $entry->__toString());
+        $this->assertEquals($logLevel, $level);
+      });
+
+    $logger->log($logLevel, $message_raw, $context);
+
   }
 
   /**

@@ -16,12 +16,12 @@ fields:
   - metadata
   - exception
 fields_all: false
-fields_custom: []
+entry_exclude_empty: true
 service_name: drupal
 target: file
 target_syslog_identity: drupal
 target_syslog_facility: 128
-target_file_path: temporary://drupal.log
+target_file_path: private://drupal-log.jsonl
 target_output_stream: stderr
 log_line_max_length: null
 backlog_items_limit: 8

@@ -51,7 +51,7 @@ class ExtendedLoggerData extends FieldPluginBase {
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
 
-    $enabledFields = $this->extendedLogger->getFields();
+    $enabledFields = $this->extendedLogger->getEnabledFields();
 
     $form['fields'] = [
       '#title' => $this->t('Display fields'),
@@ -79,8 +79,10 @@ class ExtendedLoggerData extends FieldPluginBase {
       return $value != 0;
     }, ARRAY_FILTER_USE_BOTH);
 
+    // If fields not configured, get all enabled fields from the logger
+    // settings.
     if (empty($fields)) {
-      $fields = $this->extendedLogger->getFields();
+      $fields = $this->extendedLogger->getEnabledFields();
     }
 
     $displayLabel = count($fields) > 1;

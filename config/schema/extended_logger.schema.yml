@@ -11,12 +11,9 @@ extended_logger.settings:
     fields_all:
       type: boolean
       label: Add all fields to logs
-    fields_custom:
-      type: sequence
-      label: Additional custom fields to include
-      sequence:
-        type: string
-        label: Field name
+    entry_exclude_empty:
+      type: boolean
+      label: Exclude empty fields from entry
     service_name:
       type: string
       label: Service name

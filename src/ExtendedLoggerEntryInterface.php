@@ -72,6 +72,11 @@ interface ExtendedLoggerEntryInterface {
   public function getData(): mixed;
 
   /**
+   * Cleans up empty values from the log entry data, but keeping numeric zeros.
+   */
+  public function cleanEmptyValues(): void;
+
+  /**
    * Converts the log data to the string representation.
    */
   public function __toString(): string;

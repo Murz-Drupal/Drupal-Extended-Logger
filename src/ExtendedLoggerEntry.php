@@ -70,6 +70,15 @@ class ExtendedLoggerEntry implements ExtendedLoggerEntryInterface {
   /**
    * {@inheritdoc}
    */
+  public function cleanEmptyValues(): void {
+    $this->data = array_filter($this->data, function ($value) {
+      return $value !== NULL && $value !== '' && $value !== [];
+    });
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function __toString(): string {
     return json_encode($this->data);
   }
