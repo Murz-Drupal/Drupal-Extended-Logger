@@ -169,8 +169,35 @@ class ExtendedLogger implements LoggerInterface {
    * {@inheritdoc}
    */
   public function doLog($level, $message, array $context = []) {
-    global $base_url;
+    $entry = $this->prepareEntry($level, $message, $context);
 
+    if (!$this->config->get(self::CONFIG_KEY_SKIP_EVENT_DISPATCH)) {
+      $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
+      $this->getEventDispatcher()->dispatch($event);
+      $entry = $event->entry;
+    }
+
+    if ($entry->isEmpty()) {
+      return;
+    }
+
+    $this->persist($entry, $level);
+  }
+
+  /**
+   * Prepares a log entry from the message and context.
+   *
+   * @param int $level
+   *   The log level.
+   * @param string $message
+   *   The log message.
+   * @param array $context
+   *   The log context.
+   *
+   * @return \Drupal\extended_logger\ExtendedLoggerEntryInterface
+   *   The prepared log entry.
+   */
+  protected function prepareEntry(int $level, string $message, array $context): ExtendedLoggerEntryInterface {
     $fieldsEnabled = $this->config->get(self::CONFIG_KEY_FIELDS) ?? [];
 
     if (
@@ -206,6 +233,7 @@ class ExtendedLogger implements LoggerInterface {
           break;
 
         case 'base_url':
+          global $base_url;
           $entry->set($field, $base_url);
           break;
 
@@ -293,24 +321,21 @@ class ExtendedLogger implements LoggerInterface {
       $span = Span::getCurrent();
       if ($span instanceof SpanInterface) {
         $spanContext = $span->getContext();
-        if ($spanContext instanceof SpanContextInterface) {
+        if (
+          $spanContext instanceof SpanContextInterface
+          && $spanContext->isValid()
+        ) {
           $traceId = $spanContext->getTraceId();
           $entry->set('trace_id', $traceId);
         }
       }
     }
 
-    if (!$this->config->get(self::CONFIG_KEY_SKIP_EVENT_DISPATCH)) {
-      $event = new ExtendedLoggerLogEvent($entry, $level, $message, $context);
-      $this->getEventDispatcher()->dispatch($event);
-      $entry = $event->entry;
-    }
-
     if ($this->config->get(self::CONFIG_KEY_ENTRY_EXCLUDE_EMPTY) ?? FALSE) {
       $entry->cleanEmptyValues();
     }
 
-    $this->persist($entry, $level);
+    return $entry;
   }
 
   /**
@@ -332,7 +357,7 @@ class ExtendedLogger implements LoggerInterface {
         break;
 
       case 'output':
-        file_put_contents('php://' . $this->config->get(self::CONFIG_KEY_TARGET_OUTPUT_STREAM) ?? 'stdout', $this->getEntryAsString($entry) . "\n");
+        file_put_contents('php://' . ($this->config->get(self::CONFIG_KEY_TARGET_OUTPUT_STREAM) ?? 'stderr'), $this->getEntryAsString($entry) . "\n");
         break;
 
       case 'file':

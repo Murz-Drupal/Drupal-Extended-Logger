@@ -77,6 +77,11 @@ interface ExtendedLoggerEntryInterface {
   public function cleanEmptyValues(): void;
 
   /**
+   * Checks if the log entry is empty.
+   */
+  public function isEmpty(): bool;
+
+  /**
    * Converts the log data to the string representation.
    */
   public function __toString(): string;

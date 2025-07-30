@@ -144,6 +144,19 @@ class ExtendedLoggerTest extends UnitTestCase {
   }
 
   /**
+   * @covers ::log
+   * @covers ::doLog
+   * @covers ::prepareEntry
+   */
+  public function testLogWithEmptyConfig() {
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
+    $calls = TestHelpers::mockPhpFunction('file_put_contents', ExtendedLogger::class);
+    $logger = TestHelpers::initService('extended_logger.logger');
+    $logger->log(3, 'Test message');
+    $this->assertEmpty($calls);
+  }
+
+  /**
    * @covers ::persist
    */
   public function testPersist() {

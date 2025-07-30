@@ -79,6 +79,13 @@ class ExtendedLoggerEntry implements ExtendedLoggerEntryInterface {
   /**
    * {@inheritdoc}
    */
+  public function isEmpty(): bool {
+    return empty($this->data);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function __toString(): string {
     return json_encode($this->data);
   }
