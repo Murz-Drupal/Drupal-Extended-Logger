@@ -27,7 +27,3 @@ variables:
   # Broaden test coverage.
   OPT_IN_TEST_PREVIOUS_MINOR: 1
   OPT_IN_TEST_NEXT_MAJOR: 1
-
-  # A temporary workaround until the test_helpers Drupal 11.2 support is fixed.
-  # @see https://www.drupal.org/project/test_helpers/issues/3535148
-  CORE_STABLE: '11.1.8'
