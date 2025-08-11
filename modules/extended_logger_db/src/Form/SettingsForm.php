@@ -7,6 +7,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\extended_logger\Trait\SettingLabelTrait;
 use Drupal\extended_logger_db\ExtendedLoggerDbManager;
+use Drupal\extended_logger_db\ExtendedLoggerDbUtils;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -30,12 +31,20 @@ class SettingsForm extends ConfigFormBase {
   protected ExtendedLoggerDbManager $extendedLoggerDbManager;
 
   /**
+   * An ExtendedLoggerDbUtils.
+   *
+   * @var \Drupal\extended_logger_db\ExtendedLoggerDbUtils
+   */
+  protected ExtendedLoggerDbUtils $extendedLoggerDbUtils;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
     $instance = parent::create($container);
     $instance->configTyped = $container->get('config.typed');
     $instance->extendedLoggerDbManager = $container->get('extended_logger_db.manager');
+    $instance->extendedLoggerDbUtils = $container->get(ExtendedLoggerDbUtils::class);
     return $instance;
   }
 
@@ -57,19 +66,49 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $config = $this->config(ExtendedLoggerDbManager::CONFIG_KEY);
     $this->settingsTyped = $this->configTyped->get(ExtendedLoggerDbManager::CONFIG_KEY);
 
-    $form['cleanup_by_time_enabled'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->getSettingLabel('cleanup_by_time_enabled'),
-      '#description' => $this->t('Enables deleting old log records by time.'),
-      '#default_value' => $config->get('cleanup_by_time_enabled'),
+    $form['logs_view_page'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Logs View Page'),
     ];
 
-    $form['cleanup_by_time_seconds'] = [
+    $form['logs_view_page']['description'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => $this->t('<a href="/admin/reports/extended-logs">Open the Logs View Page</a>. You can customize the columns and other settings on the views edit page <a href="/admin/structure/views/view/extended_logger_logs/edit">here</a>.'),
+    ];
+    $form['logs_view_page']['reset'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Reset the Logs page configuration to defaults'),
+      '#description' => $this->t('Use the button below to reset your changes back to defaults. Warning: it will remove all customizations of the log page and reset the page to the default settings.'),
+      '#open' => FALSE,
+    ];
+    $form['logs_view_page']['reset']['reset_logs_view_page'] = [
+      '#type' => 'submit',
+      '#name' => 'reset_logs_view_page',
+      '#value' => $this->t('Reset Logs View Page settings to defaults'),
+      '#attributes' => [
+        'class' => ['button--danger'],
+      ],
+    ];
+
+    $form['cleanup'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Cleanup rules'),
+      '#description' => $this->t('Old log entries cleans up automatically by cron. Here you can configure cleanup rules.'),
+      '#description_display' => 'before',
+    ];
+    $form['cleanup'][ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_ENABLED] = [
+      '#type' => 'checkbox',
+      '#title' => $this->getSettingLabel(ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_ENABLED),
+      '#description' => $this->t('Enables deleting old log records by time.'),
+      '#config_target' => ExtendedLoggerDbManager::CONFIG_KEY . ':' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_ENABLED,
+    ];
+
+    $form['cleanup'][ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_SECONDS] = [
       '#type' => 'select',
-      '#title' => $this->getSettingLabel('cleanup_by_time_seconds'),
+      '#title' => $this->getSettingLabel(ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_SECONDS),
       '#description' => $this->t('Time range to store.'),
       '#options' => [
         60 * 60 * 24 * 7 => $this->t('1 week'),
@@ -80,24 +119,24 @@ class SettingsForm extends ConfigFormBase {
         60 * 60 * 24 * 31 * 6 => $this->t('6 months'),
         60 * 60 * 24 * 365 => $this->t('1 year'),
       ],
-      '#default_value' => $config->get('cleanup_by_time_seconds'),
+      '#config_target' => ExtendedLoggerDbManager::CONFIG_KEY . ':' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_SECONDS,
       '#states' => [
         'visible' => [
-          ':input[name="cleanup_by_time_enabled"]' => ['checked' => TRUE],
+          ':input[name="' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_TIME_ENABLED . '"]' => ['checked' => TRUE],
         ],
       ],
     ];
 
-    $form['cleanup_by_rows_enabled'] = [
+    $form['cleanup'][ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_ENABLED] = [
       '#type' => 'checkbox',
-      '#title' => $this->getSettingLabel('cleanup_by_rows_enabled'),
+      '#title' => $this->getSettingLabel(ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_ENABLED),
       '#description' => $this->t('Enables deleting old log records by the total amount of records.'),
-      '#default_value' => $config->get('cleanup_by_rows_enabled'),
+      '#config_target' => ExtendedLoggerDbManager::CONFIG_KEY . ':' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_ENABLED,
     ];
 
-    $form['cleanup_by_rows_limit'] = [
+    $form['cleanup'][ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_LIMIT] = [
       '#type' => 'select',
-      '#title' => $this->getSettingLabel('cleanup_by_rows_limit'),
+      '#title' => $this->getSettingLabel(ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_LIMIT),
       '#description' => $this->t('Amount of records to store.'),
       '#options' => [
         1_000 => $this->t('@count rows', ['@count' => '1 000']),
@@ -105,18 +144,18 @@ class SettingsForm extends ConfigFormBase {
         100_000 => $this->t('@count rows', ['@count' => '100 000']),
         1_000_000 => $this->t('@count rows', ['@count' => '1 000 000']),
       ],
-      '#default_value' => $config->get('cleanup_by_rows_limit'),
+      '#config_target' => ExtendedLoggerDbManager::CONFIG_KEY . ':' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_LIMIT,
       '#states' => [
         'visible' => [
-          ':input[name="cleanup_by_rows_enabled"]' => ['checked' => TRUE],
+          ':input[name="' . ExtendedLoggerDbManager::CONFIG_KEY_CLEANUP_BY_ROWS_ENABLED . '"]' => ['checked' => TRUE],
         ],
       ],
     ];
 
-    $form['actions']['cleanup_now'] = [
+    $form['cleanup']['cleanup_now'] = [
       '#type' => 'submit',
+      '#name' => 'cleanup_now',
       '#value' => $this->t('Cleanup now'),
-      '#weight' => 10,
     ];
 
     return parent::buildForm($form, $form_state);
@@ -126,18 +165,20 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $this->config(ExtendedLoggerDbManager::CONFIG_KEY)
-      ->set('cleanup_by_time_enabled', $form_state->getValue('cleanup_by_time_enabled'))
-      ->set('cleanup_by_time_seconds', $form_state->getValue('cleanup_by_time_seconds'))
-      ->set('cleanup_by_rows_enabled', $form_state->getValue('cleanup_by_rows_enabled'))
-      ->set('cleanup_by_rows_limit', $form_state->getValue('cleanup_by_rows_limit'))
-      ->save();
     parent::submitForm($form, $form_state);
-    if ($form_state->getTriggeringElement()['#parents'][0] == 'cleanup_now') {
-      $this->extendedLoggerDbManager->cleanupDatabase();
-      $this->messenger->addMessage('Database logs cleaned up.');
-    }
 
+    $triggeringElement = $form_state->getTriggeringElement();
+    switch ($triggeringElement['#name']) {
+      case 'cleanup_now':
+        $this->extendedLoggerDbManager->cleanupDatabase();
+        $this->messenger()->addMessage($this->t('Database logs cleaned up.'));
+        break;
+
+      case 'reset_logs_view_page':
+        $this->extendedLoggerDbUtils->resetView();
+        $this->messenger()->addMessage($this->t('The <a href="/admin/reports/extended-logs">Logs view page</a> settings restored to defaults.'));
+        break;
+    }
   }
 
 }

@@ -21,7 +21,8 @@ function extended_logger_db_views_data() {
       ],
     ],
     'id' => [
-      'title' => t('Id'),
+      'title' => t('ID'),
+      'help' => t('The internal entry id in the database.'),
       'field' => ['id' => 'numeric'],
       'filter' => ['id' => 'numeric'],
       'sort' => ['id' => 'standard'],
@@ -30,7 +31,7 @@ function extended_logger_db_views_data() {
       'title' => t('Severity'),
       'help' => t('The severity level of the event; ranges from 0 (Emergency) to 7 (Debug).'),
       'field' => [
-        'id' => 'extended_logger_severity',
+        'id' => 'extended_logger_db_severity',
       ],
       'filter' => [
         'id' => 'in_operator',
@@ -40,6 +41,7 @@ function extended_logger_db_views_data() {
     ],
     'channel' => [
       'title' => t('Channel'),
+      'help' => t('The channel of the log entry, which can be used to categorize logs.'),
       'argument' => ['id' => 'string'],
       'field' => ['id' => 'standard'],
       'filter' => ['id' => 'extended_logger_db_channels'],
@@ -47,12 +49,14 @@ function extended_logger_db_views_data() {
     ],
     'time' => [
       'title' => t('Time'),
-      'field' => ['id' => 'extended_logger_time'],
-      'filter' => ['id' => 'standard'],
+      'help' => t('The log entry time, with microsecond precision.'),
+      'field' => ['id' => 'extended_logger_db_time'],
+      'filter' => ['id' => 'extended_logger_db_time_range'],
       'sort' => ['id' => 'numeric'],
     ],
     'message' => [
       'title' => t('Message'),
+      'help' => t('The log message associated with the event. Tokens will be replaced to values from the context.'),
       'argument' => ['id' => 'string'],
       'field' => ['id' => 'standard'],
       'filter' => ['id' => 'string'],
@@ -60,8 +64,9 @@ function extended_logger_db_views_data() {
     ],
     'data' => [
       'title' => t('Data'),
+      'help' => t('The log data (context) associated with the entry. This fields stores all the context data, passed to the log entry, and can display the whole data or individual fields.'),
       'argument' => ['id' => 'string'],
-      'field' => ['id' => 'extended_logger_data'],
+      'field' => ['id' => 'extended_logger_db_data'],
       'filter' => ['id' => 'string'],
       'sort' => ['id' => 'standard'],
     ],

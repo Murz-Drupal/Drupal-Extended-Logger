@@ -2,8 +2,10 @@
 
 namespace Drupal\extended_logger_db\Controller;
 
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
+use Drupal\Component\Serialization\Yaml;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -44,11 +46,16 @@ class ExtendedLoggerDbController extends ControllerBase {
         'value' => $this->t('Value'),
       ],
     ];
+    $build['#attached']['library'][] = 'extended_logger_db/fields';
     $entry = $this->getEntry($entry_id);
     foreach ($entry as $field => $value) {
       if ($field == 'data') {
-        $value = json_encode(json_decode($value), JSON_PRETTY_PRINT);
-        $value = ['data' => ['#markup' => '<pre>' . $value . '</pre>']];
+        $data = json_decode($value, associative: TRUE);
+        foreach ($data as $key => $value) {
+          $valueFormatted = is_array($value) ? Yaml::encode($value) : $value;
+          $items[] = "<div class='extended-logger-db-item'><dd>$key:</dd><dt><div class='extended-logger-db-pre'>$valueFormatted</div></dt></div>";
+        }
+        $value = Markup::create(implode('', $items));
       }
       $build['entry']['#rows'][] = [$field, $value];
     }

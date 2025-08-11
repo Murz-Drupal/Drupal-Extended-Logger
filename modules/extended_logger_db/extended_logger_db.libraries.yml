@@ -1,0 +1,10 @@
+views:
+  version: VERSION
+  css:
+    theme:
+      css/views.css: {}
+fields:
+  version: VERSION
+  css:
+    theme:
+      css/fields.css: {}

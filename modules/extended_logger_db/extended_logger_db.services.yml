@@ -1,3 +1,4 @@
+
 services:
   extended_logger_db.persister:
     class: Drupal\extended_logger_db\ExtendedLoggerDbPersister
@@ -9,3 +10,7 @@ services:
     arguments:
       - '@database'
       - '@config.factory'
+
+  Drupal\extended_logger_db\ExtendedLoggerDbUtils:
+    arguments:
+      - '@extension.path.resolver'

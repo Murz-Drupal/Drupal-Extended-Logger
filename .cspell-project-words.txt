@@ -1,2 +1,5 @@
+# Package names
+softcreatr
+
 # PHP constants
 LOG_NDELAY

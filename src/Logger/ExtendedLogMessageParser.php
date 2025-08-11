@@ -17,11 +17,11 @@ class ExtendedLogMessageParser extends LogMessageParser {
    */
   public function parseMessagePlaceholders(&$message, array &$context) {
     preg_match_all('/\{([^{}]+)\}/', $message, $matches);
-    $placeholders = $matches[1] ?? [];
+    $psr3Placeholders = $matches[1] ?? [];
 
     // Collect raw variables for placeholders from the context.
     $variablesRaw = [];
-    foreach ($placeholders as $placeholder) {
+    foreach ($psr3Placeholders as $placeholder) {
       // Support for JSONPath placeholders.
       if (str_starts_with($placeholder, '$.')) {
         $jsonData ??= new JSONPath($context);

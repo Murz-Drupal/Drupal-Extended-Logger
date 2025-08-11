@@ -6,14 +6,14 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
+use Drupal\views\Attribute\ViewsFilter;
 use Drupal\views\Plugin\views\filter\InOperator;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Exposes log channels to views module.
- *
- * @ViewsFilter("extended_logger_db_channels")
  */
+#[ViewsFilter('extended_logger_db_channels')]
 class ExtendedLoggerDbChannels extends InOperator implements ContainerFactoryPluginInterface {
 
   /**

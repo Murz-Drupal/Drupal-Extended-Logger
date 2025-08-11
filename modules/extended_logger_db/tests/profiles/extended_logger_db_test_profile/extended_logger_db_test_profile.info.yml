@@ -1,0 +1,10 @@
+name: Extended Logger DB test profile
+description: A helper profile for function testing of the module.
+
+type: profile
+core_version_requirement: ^10 || ^11
+hidden: true
+
+dependencies:
+  - extended_logger:extended_logger_db
+  - test_helpers:test_helpers_functional

@@ -14,3 +14,66 @@ extended_logger_db.settings:
     cleanup_by_rows_limit:
       type: integer
       label: Cleanup logs by rows limit
+
+views.field.extended_logger_db_data:
+  type: views_field
+  label: 'Extended Logger Data'
+  mapping:
+    fields:
+      type: sequence
+      label: 'Fields'
+      sequence:
+        type: string
+        label: 'Field'
+    max_length:
+      type: integer
+      label: 'Maximum length'
+    empty_value_text:
+      type: string
+      label: 'Empty value text'
+    missing_value_text:
+      type: string
+      label: 'Missing value text'
+    complex_value_render_style:
+      type: string
+      label: 'Complex value render style'
+    hide_empty_values:
+      type: boolean
+      label: 'Hide empty values'
+
+views.field.extended_logger_db_time:
+  type: views_field
+  label: 'Extended Logger Time'
+  mapping:
+    date_format:
+      type: string
+      label: 'Date format'
+    timezone:
+      type: string
+      label: 'Timezone'
+    link_to_page:
+      type: boolean
+      label: 'Link to page'
+
+views.field.extended_logger_db_severity:
+  type: views.field.number
+
+views.filter.extended_logger_db_time_range:
+  type: views_filter
+  label: 'Extended Logger Time'
+  mapping:
+    value:
+      type: mapping
+      mapping:
+        min:
+          type: string
+          label: 'Minimum time'
+          nullable: true
+        max:
+          type: string
+          label: 'Maximum time'
+          nullable: true
+
+views.filter.extended_logger_db_channels:
+  type: views.filter.in_operator
+  label: 'Extended Logger DB Channels'

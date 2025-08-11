@@ -311,15 +311,12 @@ class ExtendedLoggerTest extends UnitTestCase {
    * @covers ::exceptionToArray
    */
   public function testEntryWithException() {
-    $file = tempnam(sys_get_temp_dir(), 'extended_logger_test_testEntryWithException_');
-    $limit = rand(2, 5);
+    $limit = 3;
     $config = [
       'fields' => [
         'exception',
         'backtrace',
       ],
-      'target' => 'file',
-      'target_file_path' => $file,
       'backlog_items_limit' => $limit,
     ];
     TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
@@ -329,15 +326,90 @@ class ExtendedLoggerTest extends UnitTestCase {
     $exception = new \Exception('Test exception', 0, new \Exception('Inner exception'));
     $context = Error::decodeException($exception);
 
-    $logger->doLog(
+    $entry = TestHelpers::callPrivateMethod($logger, 'prepareEntry', [
       Error::ERROR,
       Error::DEFAULT_ERROR_MESSAGE,
-      $context);
+      $context,
+    ]);
 
-    $log = json_decode(file_get_contents($file), associative: TRUE);
-    unlink($file);
+    $log = $entry->getData();
     $this->assertCount($limit, $log['exception']['trace']);
     $this->assertCount($limit, $log['backtrace']);
+  }
+
+  /**
+   * @covers ::prepareEntry
+   */
+  public function testEntryWithJsonPathPlaceholders() {
+    $config = [
+      'fields' => [
+        'message',
+        'message_raw',
+        'customField2',
+      ],
+    ];
+    $message = 'Test: {$.customField2.foo.bar} {customField1.subField2} prefix_@placeholder2_suffix. End';
+    $context = [
+      'customField1' => [
+        'subField1' => 'subValue1',
+        'subField2' => 'subValue2',
+      ],
+      '@placeholder1' => 'placeholderValue1',
+      '@placeholder2' => 'placeholderValue2',
+      'customField2' => [
+        'foo' => [
+          'bar' => 'baz',
+          'qix' => 'qux',
+        ],
+      ],
+    ];
+
+    TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
+    $logger = TestHelpers::initService('extended_logger.logger');
+    $entry = TestHelpers::callPrivateMethod($logger, 'prepareEntry', [
+      RfcLogLevel::INFO,
+      $message,
+      $context,
+    ]);
+    $log = $entry->getData();
+
+    $this->assertEquals($message, $log['message_raw']);
+    $this->assertEquals('Test: baz subValue2 prefix_placeholderValue2_suffix. End', $log['message']);
+
+    $this->assertEquals($context['customField1']['subField2'], $log['customField1']['subField2']);
+    // This value should be absent, because the customField1 is not selected to
+    // store in the config, and no usage of this value in the placeholders.
+    $this->assertFalse(isset($log['customField1']['subField1']));
+
+    $this->assertEquals($context['customField2']['foo']['bar'], $log['customField2']['foo']['bar']);
+    // This value should be present, because the customField2 is selected to
+    // store in the config.
+    $this->assertEquals($context['customField2']['foo']['qix'], $log['customField2']['foo']['qix']);
+
+    $this->assertEquals($context['@placeholder1'], $log['@placeholder1']);
+    // This value should be present, because Drupal Core's function
+    // parseMessagePlaceholders() extracts all Drupal-related placeholders.
+    $this->assertEquals($context['@placeholder2'], $log['@placeholder2']);
+
+    $config = [
+      'fields' => [
+        'message',
+        'message_raw',
+        'customField2',
+      ],
+      'fields_all' => TRUE,
+    ];
+    TestHelpers::service('config.factory')->stubSetConfig(ExtendedLogger::CONFIG_NAME, $config);
+    TestHelpers::service(ExtendedLogMessageParser::class, new ExtendedLogMessageParser());
+    $logger = TestHelpers::initService('extended_logger.logger');
+    $entry = TestHelpers::callPrivateMethod($logger, 'prepareEntry', [
+      RfcLogLevel::INFO,
+      $message,
+      $context,
+    ]);
+    $log = $entry->getData();
+    $this->assertTrue(TestHelpers::isNestedArraySubsetOf($log, $context));
   }
 
 }

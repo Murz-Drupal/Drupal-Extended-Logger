@@ -5,8 +5,11 @@
  * Installation hooks.
  */
 
+use Drupal\Component\Serialization\Yaml;
+use Drupal\Core\Config\FileStorage;
 use Drupal\extended_logger\Logger\ExtendedLogger;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
+use Drupal\extended_logger_db\ExtendedLoggerDbUtils;
 
 /**
  * Implements hook_schema().
@@ -85,4 +88,79 @@ function extended_logger_db_uninstall() {
   \Drupal::configFactory()->getEditable(ExtendedLogger::CONFIG_NAME)
     ->set('target', 'file')
     ->save();
+}
+
+/**
+ * Migrate views configuration from 1.3.0-beta1 to 1.3.0-beta2.
+ */
+function extended_logger_db_update_10001() {
+  $configFactory = \Drupal::configFactory();
+  $moduleDirectory = \Drupal::service('extension.path.resolver')
+    ->getPath('module', 'extended_logger_db');
+  $fileStorageLegacy = new FileStorage($moduleDirectory . '/migrations/1.3.0-beta2/config/1.3.0-beta1');
+  $fileStorageNew = new FileStorage($moduleDirectory . '/migrations/1.3.0-beta2/config/1.3.0-beta2');
+  $configName = 'views.view.extended_logger_logs';
+
+  $legacyConfig = $fileStorageLegacy->read($configName);
+  $currentConfigObject = $configFactory->getEditable($configName);
+  $currentConfig = $currentConfigObject->getRawData();
+
+  $cleanupConfig = function (array $config) {
+    // Remove unnecessary fields from the config to detect only real changes.
+    foreach ($config['display'] as $displayName => $displayData) {
+      foreach ($displayData['display_options']['filters'] ?? [] as $fieldName => $fieldData) {
+        if (isset($config['display'][$displayName]['display_options']['filters'][$fieldName]['expose']['remember_roles'])) {
+          unset($config['display'][$displayName]['display_options']['filters'][$fieldName]['expose']['remember_roles']);
+        }
+      }
+    }
+    return $config;
+  };
+
+  // Clean up non-valuable Views sections.
+  $legacyConfigForCheck = $cleanupConfig($legacyConfig);
+  $currentConfigForCheck = $cleanupConfig($currentConfig);
+  $legacyConfigYaml = Yaml::encode($legacyConfigForCheck);
+  $legacyConfigLines = explode("\n", $legacyConfigYaml);
+  $currentConfigYaml = Yaml::encode($currentConfigForCheck);
+  $currentConfigYamlLines = explode("\n", $currentConfigYaml);
+  $diff = array_diff($legacyConfigLines, $currentConfigYamlLines);
+
+  $newConfig = $fileStorageNew->read($configName);
+  if (count($diff) == 0) {
+    \Drupal::service(ExtendedLoggerDbUtils::class)->resetView();
+    return "The current Views config is not changed, deployed the new one.";
+  }
+
+  $migrateTimeField = function ($data) {
+    $data['date_format'] = 'Y-m-d H:i:s';
+    $data['custom_date_format'] = 'Y-m-d H:i:s';
+    $data['timezone'] = '';
+    // Keep the legacy approach of the link by rewrite results.
+    $data['link_to_page'] = 0;
+    return $data;
+  };
+
+  $migrateDataField = function ($data) {
+    $data['fields'] = array_keys(array_filter($data['fields']));
+    return $data;
+  };
+  $currentConfig['dependencies'] = $newConfig['dependencies'];
+
+  foreach ($currentConfig['display'] ?? [] as $displayName => $displayData) {
+    foreach ($displayData['display_options']['fields'] ?? [] as $fieldName => $fieldData) {
+      if ($fieldData['table'] !== 'extended_logger_logs') {
+        continue;
+      }
+      if ($fieldData['field'] === 'time') {
+        $currentConfig['display'][$displayName]['display_options']['fields'][$fieldName] = $migrateTimeField($fieldData);
+      }
+      if ($fieldData['field'] === 'data') {
+        $currentConfig['display'][$displayName]['display_options']['fields'][$fieldName] = $migrateDataField($fieldData);
+      }
+    }
+  }
+  $currentConfigObject->setData($currentConfig)
+    ->save();
+  return "Current Extended Logger Views config were changed from the default, the field settings were migrated to the new format.";
 }

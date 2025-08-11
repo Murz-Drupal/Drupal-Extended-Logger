@@ -1,0 +1,18 @@
+/* Extended Logger DB Field Styles */
+.extended-logger-db-item dd {
+  display: inline-block;
+  margin-right: 0.2rem;
+  margin-left: 0;
+  vertical-align: top;
+  font-weight: bold;
+}
+
+.extended-logger-db-item dt {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.extended-logger-db-pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

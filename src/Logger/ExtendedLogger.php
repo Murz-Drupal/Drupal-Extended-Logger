@@ -4,6 +4,7 @@ namespace Drupal\extended_logger\Logger;
 
 use Ahc\Json\Fixer;
 use Drupal\Component\DependencyInjection\ContainerInterface;
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LogMessageParserInterface;
@@ -13,6 +14,7 @@ use Drupal\extended_logger\Event\ExtendedLoggerLogEvent;
 use Drupal\extended_logger\ExtendedLoggerEntry;
 use Drupal\extended_logger\ExtendedLoggerEntryInterface;
 use Drupal\extended_logger_db\ExtendedLoggerDbPersister;
+use Flow\JSONPath\JSONPath;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\SDK\Trace\Span;
@@ -76,6 +78,8 @@ class ExtendedLogger implements LoggerInterface {
   ];
 
   const CUT_SUFFIX = '_cut_"';
+
+  const JSONPATH_LIBRARY_MISSING_MESSAGE = 'JSONPath library missing';
 
   /**
    * Stores whether there is a system logger connection opened or not.
@@ -227,9 +231,12 @@ class ExtendedLogger implements LoggerInterface {
           $messageCopy = $message;
           $messagePlaceholders ??= $this->parser->parseMessagePlaceholders($messageCopy, $context);
           $entry->set($field, $messageCopy);
-          foreach ($messagePlaceholders ?? [] as $key => $value) {
-            $entry->set($key, $value);
+          $entryData = $entry->getData();
+          foreach ($messagePlaceholders as $key => $value) {
+            $valuePath = $this->getPlaceholderPath($key);
+            NestedArray::setValue($entryData, $valuePath, $value);
           }
+          $entry->setData($entryData);
           break;
 
         case 'base_url':
@@ -295,11 +302,6 @@ class ExtendedLogger implements LoggerInterface {
         case 'uid':
         case 'link':
         case 'backtrace':
-          if (array_key_exists($field, $context)) {
-            $entry->set($field, $context[$field]);
-          }
-          break;
-
         default:
           if (array_key_exists($field, $context)) {
             $entry->set($field, $context[$field]);
@@ -423,6 +425,86 @@ class ExtendedLogger implements LoggerInterface {
       $string = $stringFixed;
     }
     return $string;
+  }
+
+  /**
+   * Gets the path from a placeholder.
+   *
+   * Supports Drupal placeholders, PSR3 and only simple JSONPath expressions.
+   *
+   * @param string $placeholder
+   *   The placeholder to get the path from.
+   *
+   * @return array
+   *   The path as an array of parts.
+   */
+  private function getPlaceholderPath(string $placeholder): array {
+    if (str_starts_with($placeholder, '{') && str_ends_with($placeholder, '}')) {
+      $path = substr($placeholder, 1, -1);
+      if (str_starts_with($path, '$.')) {
+        $path = substr($path, 2);
+      }
+      return explode('.', $path);
+    }
+    return [$placeholder];
+  }
+
+  /**
+   * Gets the value by placeholder from the nested data array.
+   *
+   * Supports Drupal placeholders, PSR3 and full JSONPath expressions.
+   *
+   * @param array $data
+   *   The data to get the value from.
+   * @param string $placeholder
+   *   The placeholder to get the value for.
+   *
+   * @return string
+   *   The value found by the placeholder.
+   */
+  private function getValueByPlaceholder(array $data, string $placeholder): string {
+    if (str_starts_with($placeholder, '{') && str_ends_with($placeholder, '}')) {
+      $expression = substr($placeholder, 1, -1);
+      if (str_starts_with($expression, '$.')) {
+        return self::getJsonPathValue($data, $expression);
+      }
+      else {
+        $parts = explode('.', $expression);
+        return NestedArray::getValue($data, $parts);
+      }
+    }
+    return $data[$placeholder] ?? NULL;
+  }
+
+  /**
+   * Retrieves a value from a JSON object using a JSONPath expression.
+   *
+   * @param object $data
+   *   The JSON object to search.
+   * @param string $field
+   *   The JSONPath expression to use.
+   *
+   * @return mixed
+   *   The value found at the specified JSONPath, or NULL if not found.
+   */
+  public static function getJsonPathValue(array $data, string $field) {
+    if (!class_exists(JSONPath::class)) {
+      return self::JSONPATH_LIBRARY_MISSING_MESSAGE;
+    }
+    $jsonData = new JSONPath($data);
+    $value = $jsonData->find($field)->getData();
+
+    // Empty array means that the value was not found.
+    if (is_array($value) && empty($value)) {
+      return NULL;
+    }
+
+    if (is_array($value) && count($value) <= 1) {
+      // If the JSONPath returns a single value, we can use it directly.
+      $value = reset($value);
+    }
+
+    return $value;
   }
 
   /**

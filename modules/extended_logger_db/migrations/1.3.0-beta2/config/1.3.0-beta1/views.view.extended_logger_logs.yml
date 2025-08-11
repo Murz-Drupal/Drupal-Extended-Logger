@@ -1,18 +1,7 @@
-langcode: en
-status: true
-dependencies:
-  config:
-    - system.menu.admin
-  module:
-    - extended_logger_db
-    - user
-  enforced:
-    module:
-      - extended_logger_db
 id: extended_logger_logs
 label: Logs
 module: views
-description: 'Extended Logger module logs page.'
+description: 'Displays a table with logs from the Extended Logger module.'
 tag: ''
 base_table: extended_logger_logs
 base_field: id
@@ -89,14 +78,14 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          plugin_id: extended_logger_db_time
+          plugin_id: standard
           label: Time
           exclude: false
           alter:
             alter_text: false
             text: ''
-            make_link: false
-            path: ''
+            make_link: true
+            path: '/admin/reports/extended-logs/{{id}}'
             absolute: false
             external: false
             replace_spaces: false
@@ -131,9 +120,6 @@ display:
           hide_empty: false
           empty_zero: false
           hide_alter_empty: true
-          date_format: 'Y-m-d H:i:s'
-          timezone: ''
-          link_to_page: true
         channel:
           id: channel
           table: extended_logger_logs
@@ -267,8 +253,8 @@ display:
             suffix: ''
             target: ''
             nl2br: false
-            max_length: 128
-            word_boundary: true
+            max_length: 255
+            word_boundary: false
             ellipsis: true
             more_link: false
             more_link_text: ''
@@ -296,7 +282,7 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          plugin_id: extended_logger_db_data
+          plugin_id: standard
           label: Data
           exclude: false
           alter:
@@ -316,8 +302,8 @@ display:
             suffix: ''
             target: ''
             nl2br: false
-            max_length: 0
-            word_boundary: true
+            max_length: 64
+            word_boundary: false
             ellipsis: true
             more_link: false
             more_link_text: ''
@@ -339,17 +325,20 @@ display:
           empty_zero: false
           hide_alter_empty: true
           fields:
-            - ip
-            - request_uri
-            - referer
-            - uid
-            - link
-            - metadata
-          max_length: 64
-          empty_value_text: ''
-          missing_value_text: ''
-          complex_value_render_style: yaml
-          hide_empty_values: true
+            timestamp: 0
+            timestamp_float: 0
+            message: 0
+            message_raw: 0
+            base_url: 0
+            request_time: 0
+            channel: 0
+            referer: 0
+            severity: 0
+            level: 0
+            uid: 0
+            link: 0
+            metadata: 0
+          max_length: '128'
       pager:
         type: full
         options:
@@ -375,7 +364,7 @@ display:
         type: basic
         options:
           submit_button: Apply
-          reset_button: true
+          reset_button: false
           reset_button_label: Reset
           exposed_sorts_label: 'Sort by'
           expose_sort_order: true
@@ -392,46 +381,6 @@ display:
       sorts: {  }
       arguments: {  }
       filters:
-        time:
-          id: time
-          table: extended_logger_logs
-          field: time
-          relationship: none
-          group_type: group
-          admin_label: ''
-          plugin_id: extended_logger_db_time_range
-          operator: '='
-          value:
-            min: null
-            max: null
-          group: 1
-          exposed: true
-          expose:
-            operator_id: ''
-            label: Time
-            description: ''
-            use_operator: false
-            operator: time_op
-            operator_limit_selection: false
-            operator_list: {  }
-            identifier: time
-            required: false
-            remember: false
-            multiple: false
-            remember_roles:
-              authenticated: authenticated
-          is_grouped: false
-          group_info:
-            label: ''
-            description: ''
-            identifier: ''
-            optional: true
-            widget: select
-            multiple: false
-            remember: false
-            default_group: All
-            default_group_multiple: {  }
-            group_items: {  }
         severity:
           id: severity
           table: extended_logger_logs
@@ -458,9 +407,13 @@ display:
             multiple: true
             remember_roles:
               authenticated: authenticated
+              anonymous: '0'
+              content_editor: '0'
+              administrator: '0'
             min_placeholder: ''
             max_placeholder: ''
             placeholder: ''
+            reduce: 0
           is_grouped: false
           group_info:
             label: ''
@@ -480,7 +433,7 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          plugin_id: extended_logger_db_channels
+          plugin_id: standard
           operator: in
           value: {  }
           group: 1
@@ -499,7 +452,11 @@ display:
             multiple: true
             remember_roles:
               authenticated: authenticated
-            reduce: false
+              anonymous: '0'
+              content_editor: '0'
+              administrator: '0'
+            reduce: 0
+            placeholder: ''
           is_grouped: false
           group_info:
             label: ''
@@ -538,6 +495,10 @@ display:
             multiple: false
             remember_roles:
               authenticated: authenticated
+              anonymous: '0'
+              content_editor: '0'
+              administrator: '0'
+            placeholder: ''
           is_grouped: false
           group_info:
             label: ''
@@ -576,6 +537,9 @@ display:
             multiple: false
             remember_roles:
               authenticated: authenticated
+              anonymous: '0'
+              content_editor: '0'
+              administrator: '0'
             placeholder: ''
           is_grouped: false
           group_info:

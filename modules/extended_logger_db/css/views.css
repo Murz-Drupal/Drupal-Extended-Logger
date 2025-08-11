@@ -1,0 +1,13 @@
+/* Extended Logger DB View Styles */
+.view-extended-logger-logs .views-field {
+  overflow-wrap: anywhere;
+}
+
+.views-exposed-form
+  .extended-logger-db-views-filter-time-wrapper
+  .form-datetime-wrapper,
+.views-exposed-form
+  .extended-logger-db-views-filter-time-wrapper
+  .form-item--no-label {
+  margin-top: 0;
+}

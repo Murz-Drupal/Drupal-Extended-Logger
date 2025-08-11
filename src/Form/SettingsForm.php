@@ -227,7 +227,6 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-
     // Apply form state values transformation on the validation step, instead of
     // the submit, because ConfigFormBase::validateForm() requires the values to
     // be valid to store in the configuration.
