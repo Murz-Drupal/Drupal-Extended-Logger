@@ -492,7 +492,12 @@ class ExtendedLogger implements LoggerInterface {
       return self::JSONPATH_LIBRARY_MISSING_MESSAGE;
     }
     $jsonData = new JSONPath($data);
-    $value = $jsonData->find($field)->getData();
+    try {
+      $value = $jsonData->find($field)->getData();
+    }
+    catch (\Exception $e) {
+      $value = [$e->getMessage()];
+    }
 
     // Empty array means that the value was not found.
     if (is_array($value) && empty($value)) {

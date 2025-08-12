@@ -412,4 +412,42 @@ class ExtendedLoggerTest extends UnitTestCase {
     $this->assertTrue(TestHelpers::isNestedArraySubsetOf($log, $context));
   }
 
+  /**
+   * @covers ::getJsonPathValue
+   */
+  public function testGetJsonPathValue() {
+    $data = [
+      'foo' => [
+        'bar' => 'baz',
+        'qix' => 'qux',
+      ],
+    ];
+    // Test simple dot notation.
+    $simplePath = 'foo.bar';
+    $result = ExtendedLogger::getJsonPathValue($data, $simplePath);
+    $this->assertEquals('baz', $result);
+
+    // Test JSONPath notation.
+    $jsonPath = '$.foo.bar';
+    $resultJsonPath = ExtendedLogger::getJsonPathValue($data, $jsonPath);
+    if ($resultJsonPath === ExtendedLogger::JSONPATH_LIBRARY_MISSING_MESSAGE) {
+      $this->markTestSkipped('JSONPath library missing');
+    }
+    else {
+      $this->assertEquals('baz', $resultJsonPath);
+    }
+
+    // Test JSONPath exception.
+    $data = [
+      'foo' => [
+        'bar' => 'baz',
+      ],
+    ];
+    $invalidJsonPath = '{$.foo[INVALID]}';
+    $result = ExtendedLogger::getJsonPathValue($data, $invalidJsonPath);
+    // The result should be a string with the error message.
+    $this->assertIsString($result);
+    $this->assertStringContainsString('Unable to parse token', $result);
+  }
+
 }

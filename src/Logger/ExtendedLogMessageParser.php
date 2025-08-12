@@ -25,7 +25,12 @@ class ExtendedLogMessageParser extends LogMessageParser {
       // Support for JSONPath placeholders.
       if (str_starts_with($placeholder, '$.')) {
         $jsonData ??= new JSONPath($context);
-        $value = $jsonData->find($placeholder)->getData();
+        try {
+          $value = $jsonData->find($placeholder)->getData();
+        }
+        catch (\Exception $e) {
+          $value = [$e->getMessage()];
+        }
         if (!empty($value)) {
           if (count($value) > 1) {
             $variablesRaw[$placeholder] = $value;

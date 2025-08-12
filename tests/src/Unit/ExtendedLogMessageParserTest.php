@@ -53,4 +53,26 @@ class ExtendedLogMessageParserTest extends UnitTestCase {
     $this->assertEquals($expected, $placeholders);
   }
 
+  /**
+   * @covers ::parseMessagePlaceholders
+   */
+  public function testInvalidJsonPlaceholders() {
+    $message = 'Test invalid placeholder {metadata.value} {$.metadata:value} {$metadata.value} {metadata.Value} {metadata:value}';
+    $context = [
+      'metadata' => [
+        'value' => 'my_value',
+      ],
+    ];
+    $messageExpected = $message;
+    $placeholdersExpected = [
+      '{metadata.value}' => "my_value",
+      '{$.metadata:value}' => "Unable to parse token metadata:value in expression: .metadata:value",
+    ];
+
+    $parser = new ExtendedLogMessageParser();
+    $placeholders = $parser->parseMessagePlaceholders($message, $context);
+    $this->assertEquals($messageExpected, $message);
+    $this->assertEquals($placeholdersExpected, $placeholders);
+  }
+
 }
