@@ -1,0 +1,8 @@
+name: Extended Logger DB Test
+type: module
+description: A helper module for the module tests.
+package: Custom
+core_version_requirement: ^10 || ^11
+dependencies:
+  - extended_logger:extended_logger_db
+  - drupal:views

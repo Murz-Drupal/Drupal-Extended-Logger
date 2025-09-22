@@ -15,6 +15,10 @@ function extended_logger_db_views_data() {
     'table' => [
       'group' => 'Extended logger',
       'base' => [
+        // A workaround for an issue to allow custom field plugins for
+        // aggregation.
+        // @see https://www.drupal.org/project/drupal/issues/3541066
+        'query_id' => 'extended_logger_db_query',
         'field' => 'id',
         'title' => t('Extended Logger logs'),
         'help' => t('Stores log entries from the Extended Logger module.'),
@@ -52,7 +56,7 @@ function extended_logger_db_views_data() {
       'help' => t('The log entry time, with microsecond precision.'),
       'field' => ['id' => 'extended_logger_db_time'],
       'filter' => ['id' => 'extended_logger_db_time_range'],
-      'sort' => ['id' => 'numeric'],
+      'sort' => ['id' => 'standard'],
     ],
     'message' => [
       'title' => t('Message'),
@@ -63,12 +67,29 @@ function extended_logger_db_views_data() {
       'sort' => ['id' => 'standard'],
     ],
     'data' => [
-      'title' => t('Data'),
-      'help' => t('The log data (context) associated with the entry. This fields stores all the context data, passed to the log entry, and can display the whole data or individual fields.'),
+      'title' => t('Log entry data'),
+      'help' => t('Full data stored in the log entry.'),
       'argument' => ['id' => 'string'],
       'field' => ['id' => 'extended_logger_db_data'],
       'filter' => ['id' => 'string'],
       'sort' => ['id' => 'standard'],
+    ],
+    'log_value' => [
+      'title' => t('Log value'),
+      'help' => t('Single log entry value by path.'),
+      'field' => ['id' => 'extended_logger_db_log_value'],
+    ],
+    'log_value_string' => [
+      'title' => t('Log Value (String)'),
+      'help' => t('Filter by a log entry value as string.'),
+      'filter' => ['id' => 'extended_logger_db_log_value_string'],
+      'real field' => 'data',
+    ],
+    'log_value_numeric' => [
+      'title' => t('Log Value (Numeric)'),
+      'help' => t('Filter by a log entry value as numeric. For aggregation use JSON-value compatible types.'),
+      'filter' => ['id' => 'extended_logger_db_log_value_numeric'],
+      'real field' => 'data',
     ],
   ];
   return $data;

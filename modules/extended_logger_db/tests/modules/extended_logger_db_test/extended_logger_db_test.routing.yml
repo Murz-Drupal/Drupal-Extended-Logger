@@ -1,0 +1,9 @@
+extended_logger_db_test.make_log_entries:
+  path: '/extended-logger-db-test/make-log-entries'
+  defaults:
+    _controller: 'Drupal\extended_logger_db_test\Controller\MakeLogEntriesController'
+  requirements:
+    # We need to make this endpoint available for all to simplify tests.
+    _access: 'TRUE'
+  options:
+    no_cache: 'TRUE'

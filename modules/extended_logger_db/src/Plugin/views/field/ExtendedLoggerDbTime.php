@@ -123,7 +123,7 @@ class ExtendedLoggerDbTime extends FieldPluginBase {
 
     $form['link_to_page'] = [
       '#title' => $this->t('Link to entry'),
-      '#description' => $this->t('Make a link to the entry view page.'),
+      '#description' => $this->t('Make a link to the entry view page. Add the hidden "ID" field to the views to make it work.'),
       '#type' => 'checkbox',
       '#default_value' => !empty($this->options['link_to_page']),
     ];

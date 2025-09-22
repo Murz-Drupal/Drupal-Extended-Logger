@@ -1,4 +1,3 @@
-
 services:
   extended_logger_db.persister:
     class: Drupal\extended_logger_db\ExtendedLoggerDbPersister

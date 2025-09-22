@@ -1,0 +1,30 @@
+<?php
+
+/**
+ * @file
+ * Install file for the extended_logger_db_test module.
+ */
+
+declare(strict_types=1);
+
+use Drupal\extended_logger_db_test\Controller\MakeLogEntriesController;
+
+/**
+ * Defines the extended_logger_db_test module hooks.
+ */
+function extended_logger_db_test_install() {
+  \Drupal::configFactory()->getEditable('views.settings')
+    ->set('ui.show.sql_query.enabled', TRUE)
+    ->save();
+}
+
+/**
+ * Creates test log records.
+ *
+ * Implements hook_modules_installed().
+ */
+function extended_logger_db_test_modules_installed(array $modules) {
+  if (in_array('extended_logger_db_test', $modules, TRUE)) {
+    MakeLogEntriesController::makeLogEntries();
+  }
+}

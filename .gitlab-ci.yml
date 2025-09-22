@@ -25,5 +25,54 @@ include:
 ################
 variables:
   # Broaden test coverage.
-  OPT_IN_TEST_PREVIOUS_MINOR: 1
+  OPT_IN_TEST_PREVIOUS_MAJOR: 1
   OPT_IN_TEST_NEXT_MAJOR: 1
+  _NIGHTWATCH_EXTRA: '--verbose'
+
+composer (previous major):
+  after_script:
+    # Upgrade Nightwatch to version 3.x to make `findElement` queries work well.
+    # @todo Remove this when Drupal Core switches to Nightwatch 3.x.
+    - |
+      ls $CI_PROJECT_DIR
+      ls $CI_PROJECT_DIR/$_WEB_ROOT
+      cd $CI_PROJECT_DIR/$_WEB_ROOT/core && corepack enable && yarn add --dev nightwatch@^3.9
+      cd $CI_PROJECT_DIR
+    # Patch the config to work well with Nightwatch 2.5.0+.
+    - |
+      sed -i 's/w3c: false/w3c: !!process.env.DRUPAL_TEST_WEBDRIVER_W3C/' $CI_PROJECT_DIR/$_WEB_ROOT/core/tests/Drupal/Nightwatch/nightwatch.conf.js
+
+.nightwatch-db-matrix:
+  # extends: nightwatch
+  extends: nightwatch (previous major)
+  variables:
+    NIGHTWATCH_TAG: extended_logger_db-matrix
+  before_script:
+    # Setting the PROJECT_NAME from variables doesn't work for some reason, so
+    # setting it manually.
+    - export PROJECT_NAME=$NIGHTWATCH_TAG
+
+
+'nightwatch MySQL min':
+  extends: .nightwatch-db-matrix
+  variables:
+    _TARGET_DB_TYPE: "mysql"
+    _TARGET_DB_VERSION: "$CORE_MYSQL_MIN"
+
+'nightwatch MariaDB min':
+  extends: .nightwatch-db-matrix
+  variables:
+    _TARGET_DB_TYPE: "mariadb"
+    _TARGET_DB_VERSION: "$CORE_MARIADB_MIN"
+
+'nightwatch PostgreSQL min':
+  extends: .nightwatch-db-matrix
+  variables:
+    _TARGET_DB_TYPE: "pgsql"
+    _TARGET_DB_VERSION: "$CORE_PGSQL_MIN"
+
+'nightwatch SQLite min':
+  extends: .nightwatch-db-matrix
+  variables:
+    _TARGET_DB_TYPE: "sqlite"
+    _TARGET_DB_VERSION: "$CORE_SQLITE_MIN"

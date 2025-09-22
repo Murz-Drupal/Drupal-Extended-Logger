@@ -1,0 +1,13 @@
+views.field.extended_logger_db_log_value:
+  type: views_field
+  label: 'Extended Logger Log Value'
+  mapping:
+    value_path:
+      type: string
+      label: 'Path to the value'
+    value_format:
+      type: string
+      label: 'Value format'
+    display_format:
+      type: string
+      label: 'Display format'

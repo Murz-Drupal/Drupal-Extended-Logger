@@ -1,0 +1,23 @@
+views.filter.extended_logger_db_log_value_numeric:
+  type: views.filter.numeric
+  label: 'Extended Logger Log Value'
+  mapping:
+    value_path:
+      type: string
+      label: 'Path to the value'
+
+views.filter_value.extended_logger_db_log_value_numeric:
+  type: views.filter_value.numeric
+  label: 'Extended Logger Numeric Value'
+
+views.filter.extended_logger_db_log_value_string:
+  type: views.filter.string
+  label: 'Extended Logger Log Value String'
+  mapping:
+    value_path:
+      type: string
+      label: 'Path to the value'
+
+views.filter_value.extended_logger_db_log_value_string:
+  type: views.filter_value.string
+  label: 'Extended Logger Log Value Numeric Value'

@@ -56,7 +56,7 @@ views.field.extended_logger_db_time:
       label: 'Link to page'
 
 views.field.extended_logger_db_severity:
-  type: views.field.number
+  type: views.field.numeric
 
 views.filter.extended_logger_db_time_range:
   type: views_filter
@@ -76,4 +76,4 @@ views.filter.extended_logger_db_time_range:
 
 views.filter.extended_logger_db_channels:
   type: views.filter.in_operator
-  label: 'Extended Logger DB Channels'
+  label: 'Extended Logger Channels'

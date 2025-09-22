@@ -6,5 +6,6 @@ core_version_requirement: ^10 || ^11
 hidden: true
 
 dependencies:
-  - extended_logger:extended_logger_db
+  - extended_logger:extended_logger_db_test
   - test_helpers:test_helpers_functional
+  - drupal:views_ui
